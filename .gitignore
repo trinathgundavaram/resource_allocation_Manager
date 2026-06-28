@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS
+.DS_Store
+
+# Runtime database (created automatically by the app)
+allocations.db
+allocations.db-wal
+allocations.db-shm
+
+# Generated data — keep the folders, ignore their contents
+backups/*
+!backups/.gitkeep
+uploads/*
+!uploads/.gitkeep
