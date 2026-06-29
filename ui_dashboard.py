@@ -116,20 +116,25 @@ def _total_budget(year):
 
 @st.cache_data(show_spinner=False)
 def _project_health(year, month, _version):
+    """Project health scoped to the selected YEAR: planned spend, remaining and
+    % of budget are all for Jan–Dec of ``year`` (clipped to the project's
+    window). Budget is the amendment effective as of that year-end."""
     out = []
     for p in logic.get_projects():
         window = months_between(p["start_year"], p["start_month"],
                                 p["end_year"], p["end_month"])
-        spent = sum(logic.project_month_cost(p["id"], y, m) for (y, m) in window)
-        budget = logic.budget_for_month(p["id"], p["end_year"], p["end_month"])
+        wset = set(window)
+        fy_spend = sum(logic.project_month_cost(p["id"], year, m)
+                       for m in range(1, 13) if (year, m) in wset)
+        budget = logic.budget_for_month(p["id"], year, 12)
         this_month = logic.project_month_cost(p["id"], year, month) \
-            if (year, month) in window else 0.0
+            if (year, month) in wset else 0.0
         out.append({
             "project": logic.project_label(p),
             "status": p["status"], "baseline": "⭐" if p["is_baseline"] else "",
-            "budget": round(budget, 0), "planned_spend": round(spent, 0),
-            "remaining": round(budget - spent, 0),
-            "pct_of_budget": round(spent / budget * 100, 1) if budget else 0.0,
+            "budget": round(budget, 0), "fy_spend": round(fy_spend, 0),
+            "fy_remaining": round(budget - fy_spend, 0),
+            "pct_of_budget": round(fy_spend / budget * 100, 1) if budget else 0.0,
             "this_month_burn": round(this_month, 0),
         })
     return out
@@ -326,6 +331,8 @@ def _action_items(user):
 
 def _project_health_section(year, month, version):
     st.subheader("📊 Project health")
+    st.caption(f"Planned spend, remaining and **% of budget** are for the full "
+               f"year **Jan–Dec {year}** (clipped to each project's window).")
     health = _project_health(year, month, version)
     if not health:
         st.info("No projects yet.")
@@ -338,24 +345,24 @@ def _project_health_section(year, month, version):
         return
     df = pd.DataFrame([{
         "Project": h["project"], "Status": h["status"], "baseline": h["baseline"],
-        "Budget": h["budget"], "Planned": h["planned_spend"],
-        "Remaining": h["remaining"], "% Budget": h["pct_of_budget"],
+        "Budget": h["budget"], "FY planned": h["fy_spend"],
+        "FY remaining": h["fy_remaining"], "% Budget (FY)": h["pct_of_budget"],
         "This-mo burn": h["this_month_burn"],
     } for h in rows])
     st.dataframe(
         df, use_container_width=True, hide_index=True,
         column_config={
-            "% Budget": st.column_config.ProgressColumn(
-                "% of budget", min_value=0, max_value=100, format="%.0f%%"),
+            "% Budget (FY)": st.column_config.ProgressColumn(
+                "% of budget (FY)", min_value=0, max_value=100, format="%.0f%%"),
             "Budget": st.column_config.NumberColumn("Budget", format="$%.0f"),
-            "Planned": st.column_config.NumberColumn("Planned", format="$%.0f"),
-            "Remaining": st.column_config.NumberColumn("Remaining", format="$%.0f"),
+            "FY planned": st.column_config.NumberColumn("FY planned", format="$%.0f"),
+            "FY remaining": st.column_config.NumberColumn("FY remaining", format="$%.0f"),
             "This-mo burn": st.column_config.NumberColumn("This-mo burn", format="$%.0f"),
         })
-    over = [h for h in rows if h["budget"] and h["planned_spend"] > h["budget"]]
+    over = [h for h in rows if h["budget"] and h["fy_spend"] > h["budget"]]
     if over:
-        st.warning("Over planned budget: " +
-                   ", ".join(f"{h['project']} (+{h['planned_spend']-h['budget']:,.0f})"
+        st.warning(f"Over budget for {year}: " +
+                   ", ".join(f"{h['project']} (+{h['fy_spend']-h['budget']:,.0f})"
                              for h in over))
 
 
