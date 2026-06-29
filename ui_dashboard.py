@@ -126,13 +126,14 @@ def _project_health(year, month, _version):
         wset = set(window)
         fy_spend = sum(logic.project_month_cost(p["id"], year, m)
                        for m in range(1, 13) if (year, m) in wset)
-        budget = logic.budget_for_month(p["id"], year, 12)
+        budget, is_annual = logic.annual_budget(p["id"], year)
         this_month = logic.project_month_cost(p["id"], year, month) \
             if (year, month) in wset else 0.0
         out.append({
             "project": logic.project_label(p),
             "status": p["status"], "baseline": "⭐" if p["is_baseline"] else "",
-            "budget": round(budget, 0), "fy_spend": round(fy_spend, 0),
+            "budget": round(budget, 0), "budget_basis": "annual" if is_annual else "overall",
+            "fy_spend": round(fy_spend, 0),
             "fy_remaining": round(budget - fy_spend, 0),
             "pct_of_budget": round(fy_spend / budget * 100, 1) if budget else 0.0,
             "this_month_burn": round(this_month, 0),
@@ -332,7 +333,10 @@ def _action_items(user):
 def _project_health_section(year, month, version):
     st.subheader("📊 Project health")
     st.caption(f"Planned spend, remaining and **% of budget** are for the full "
-               f"year **Jan–Dec {year}** (clipped to each project's window).")
+               f"year **Jan–Dec {year}** (clipped to each project's window). "
+               "*Basis* = **annual** if a per-year budget is set for this year, "
+               "else **overall** (the project's total budget). Set a per-year "
+               "budget in Project Pipeline → Detail → Budget.")
     health = _project_health(year, month, version)
     if not health:
         st.info("No projects yet.")
@@ -345,7 +349,7 @@ def _project_health_section(year, month, version):
         return
     df = pd.DataFrame([{
         "Project": h["project"], "Status": h["status"], "baseline": h["baseline"],
-        "Budget": h["budget"], "FY planned": h["fy_spend"],
+        "Budget": h["budget"], "Basis": h["budget_basis"], "FY planned": h["fy_spend"],
         "FY remaining": h["fy_remaining"], "% Budget (FY)": h["pct_of_budget"],
         "This-mo burn": h["this_month_burn"],
     } for h in rows])

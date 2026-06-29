@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS project_budgets (
     project_id          INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     budget_amount       REAL NOT NULL CHECK (budget_amount >= 0),
     effective_from_date TEXT NOT NULL,
+    budget_year         INTEGER,   -- NULL = overall/total budget; else annual budget for that year
     note                TEXT,
     created_by          TEXT,
     created_at          TEXT NOT NULL
@@ -333,6 +334,9 @@ def _migrate(conn):
     pcols = {r["name"] for r in conn.execute("PRAGMA table_info(projects)")}
     if "code" not in pcols:
         conn.execute("ALTER TABLE projects ADD COLUMN code TEXT")
+    bcols = {r["name"] for r in conn.execute("PRAGMA table_info(project_budgets)")}
+    if "budget_year" not in bcols:
+        conn.execute("ALTER TABLE project_budgets ADD COLUMN budget_year INTEGER")
 
 
 def get_setting(key, default=None):

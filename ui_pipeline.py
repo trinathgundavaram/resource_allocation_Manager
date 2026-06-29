@@ -171,33 +171,52 @@ def _details_tab(project, user):
     st.divider()
     st.markdown("##### Budget")
     cur_budget = logic.budget_for_month(pid, project["start_year"], project["start_month"])
-    st.metric("Current budget (as of start)", f"{cur_budget:,.2f}")
+    st.metric("Current overall budget (as of start)", f"{cur_budget:,.2f}")
+    # Per-year budgets (if any) for the project's years.
+    proj_years = list(range(project["start_year"], project["end_year"] + 1))
+    annuals = []
+    for yr in proj_years:
+        amt, is_annual = logic.annual_budget(pid, yr)
+        if is_annual:
+            annuals.append({"year": yr, "annual budget": amt})
+    if annuals:
+        st.caption("Per-year budgets set:")
+        st.dataframe(pd.DataFrame(annuals), use_container_width=True, hide_index=True)
+
     budgets = db.query(
         "SELECT * FROM project_budgets WHERE project_id=? ORDER BY effective_from_date DESC, id DESC",
         (pid,))
     if budgets:
         st.dataframe(pd.DataFrame([{
-            "amount": b["budget_amount"], "effective_from": b["effective_from_date"],
+            "amount": b["budget_amount"],
+            "scope": f"year {b['budget_year']}" if b["budget_year"] else "overall",
+            "effective_from": b["effective_from_date"],
             "note": b["note"], "by": b["created_by"],
         } for b in budgets]), use_container_width=True, hide_index=True)
     clear_after_save(f"_clr_budget_{pid}", [f"budget_note_{pid}"])
     with st.form("amend_budget"):
-        st.caption("Changing the budget creates a new amendment entry (as-of aware).")
-        amt = st.number_input("New budget amount", 0.0, 1e9, float(cur_budget), 1000.0)
+        st.caption("Adds a budget amendment (as-of aware). Choose **Overall** for "
+                   "the total project budget, or a **specific year** for a per-year "
+                   "budget used by the dashboard's % of budget (FY).")
+        amt = st.number_input("Budget amount", 0.0, 1e9, float(cur_budget), 1000.0)
+        scope = st.selectbox("Applies to", ["Overall (total project)"]
+                             + [f"Year {y}" for y in proj_years])
         eff = st.date_input("Effective from", _dt.date.today())
         note = st.text_input("Amendment note", key=f"budget_note_{pid}")
         if st.form_submit_button("Add budget amendment"):
+            byear = None if scope.startswith("Overall") else int(scope.split()[1])
             db.execute(
                 """INSERT INTO project_budgets (project_id, budget_amount,
-                   effective_from_date, note, created_by, created_at)
-                   VALUES (?,?,?,?,?,?)""",
-                (pid, amt, eff.isoformat(), note, user, db.now_iso()))
+                   effective_from_date, budget_year, note, created_by, created_at)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (pid, amt, eff.isoformat(), byear, note, user, db.now_iso()))
+            scope_txt = "overall" if byear is None else f"year {byear}"
             db.audit_log("UPDATE", "project", pid,
-                         f"Budget amendment {amt:g} effective {eff.isoformat()} "
-                         f"on '{project['name']}'"
+                         f"Budget amendment {amt:g} ({scope_txt}) effective "
+                         f"{eff.isoformat()} on '{project['name']}'"
                          + (f" — {note}" if note.strip() else ""), user)
             st.session_state[f"_clr_budget_{pid}"] = True
-            st.success("Budget amendment added.")
+            st.success(f"Budget amendment added ({scope_txt}).")
             st.rerun()
 
     st.divider()

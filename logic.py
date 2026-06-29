@@ -195,11 +195,14 @@ def billing_rate_for_month(resource_id, year, month):
 
 
 def budget_for_month(project_id, year, month):
-    """Latest budget amount effective on or before the last day of the month."""
+    """Latest OVERALL budget effective on or before the last day of the month.
+
+    Only considers overall amendments (budget_year IS NULL); per-year budgets
+    are read via ``annual_budget``."""
     last = last_day_of_month(year, month).isoformat()
     row = db.query_one(
         """SELECT budget_amount FROM project_budgets
-           WHERE project_id = ? AND effective_from_date <= ?
+           WHERE project_id = ? AND budget_year IS NULL AND effective_from_date <= ?
            ORDER BY effective_from_date DESC, id DESC LIMIT 1""",
         (project_id, last),
     )
@@ -207,14 +210,32 @@ def budget_for_month(project_id, year, month):
 
 
 def budget_as_of(project_id, as_of_date):
-    """Latest budget effective on or before an arbitrary as-of date."""
+    """Latest OVERALL budget effective on or before an arbitrary as-of date."""
     row = db.query_one(
         """SELECT budget_amount FROM project_budgets
-           WHERE project_id = ? AND effective_from_date <= ?
+           WHERE project_id = ? AND budget_year IS NULL AND effective_from_date <= ?
            ORDER BY effective_from_date DESC, id DESC LIMIT 1""",
         (project_id, as_of_date),
     )
     return float(row["budget_amount"]) if row else 0.0
+
+
+def annual_budget(project_id, year):
+    """Budget for a specific calendar year.
+
+    Uses the latest per-year amendment (budget_year == year) if one exists;
+    otherwise falls back to the project's overall budget as of that year-end.
+    """
+    last = last_day_of_month(year, 12).isoformat()
+    row = db.query_one(
+        """SELECT budget_amount FROM project_budgets
+           WHERE project_id = ? AND budget_year = ? AND effective_from_date <= ?
+           ORDER BY effective_from_date DESC, id DESC LIMIT 1""",
+        (project_id, year, last),
+    )
+    if row:
+        return float(row["budget_amount"]), True   # explicit per-year budget
+    return budget_for_month(project_id, year, 12), False  # fallback to overall
 
 
 def resource_working_hours(resource_id, year, month):
