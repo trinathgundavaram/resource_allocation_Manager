@@ -17,6 +17,7 @@ version, so any change anywhere refreshes it instantly.
 
 import datetime as _dt
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -159,15 +160,27 @@ def render(user):
 
     # ---- Allocation status breakdown ----
     st.markdown("##### Allocation status")
-    s1, s2, s3, s4 = st.columns([1, 1, 1, 2])
-    s1.metric("✅ Fully allocated", fully)
-    s2.metric("🟡 Partially allocated", partial)
-    s3.metric("⚪ No allocation", none_alloc)
-    with s4:
-        st.bar_chart(
-            pd.DataFrame({"resources": [fully, partial, none_alloc]},
-                         index=["Fully", "Partially", "None"]),
-            height=160)
+    st.caption("Status reflects **delivery (non-baseline) work**. A resource "
+               "sitting entirely on a baseline counts as *No delivery* — it is "
+               "allocated to a baseline, just not to delivery work.")
+    s1, s2, s3 = st.columns(3)
+    s1.metric("✅ Fully allocated", fully, help="100% on delivery projects.")
+    s2.metric("🟡 Partially allocated", partial, help="Some delivery, some baseline.")
+    s3.metric("⚪ No delivery (baseline only)", none_alloc,
+              help="Entirely on a baseline; no delivery work.")
+    status_order = ["Fully allocated", "Partially allocated", "No delivery (baseline)"]
+    status_df = pd.DataFrame({"Status": status_order,
+                              "Resources": [fully, partial, none_alloc]})
+    status_chart = (
+        alt.Chart(status_df).mark_bar().encode(
+            x=alt.X("Resources:Q", title="# resources",
+                    axis=alt.Axis(tickMinStep=1)),
+            y=alt.Y("Status:N", sort=status_order, title=None),
+            color=alt.Color("Status:N", sort=status_order, legend=None,
+                            scale=alt.Scale(range=["#2E7D32", "#F9A825", "#9E9E9E"])),
+            tooltip=["Status", "Resources"])
+        .properties(height=140))
+    st.altair_chart(status_chart, use_container_width=True)
 
     # ---- Financials: YTD / projection / budget remaining ----
     monthly = _monthly_burn(year, version)
@@ -194,14 +207,26 @@ def render(user):
                "YTD = Jan→selected month; rest-of-year = remaining months; "
                "full-year = all 12 months.")
 
-    # ---- Monthly burn trend ----
+    # ---- Monthly burn trend (chronological order enforced via Altair sort) ----
     with st.expander("📈 Monthly burn trend (Jan–Dec)", expanded=True):
-        burn_df = pd.DataFrame(
-            {"planned burn": monthly,
-             "cumulative": pd.Series(monthly).cumsum().round(2)},
-            index=[MONTH_ABBR[m] for m in range(1, 13)])
-        st.bar_chart(burn_df[["planned burn"]], height=240)
-        st.line_chart(burn_df[["cumulative"]], height=200)
+        order = [MONTH_ABBR[m] for m in range(1, 13)]
+        burn_df = pd.DataFrame({
+            "Month": order,
+            "Planned burn": [round(x, 2) for x in monthly],
+            "Cumulative": [round(x, 2) for x in pd.Series(monthly).cumsum()],
+        })
+        bar = (alt.Chart(burn_df).mark_bar(color="#4C78A8").encode(
+                   x=alt.X("Month:N", sort=order, title="Month"),
+                   y=alt.Y("Planned burn:Q", title="Planned burn"),
+                   tooltip=["Month", "Planned burn"])
+               .properties(height=240))
+        st.altair_chart(bar, use_container_width=True)
+        line = (alt.Chart(burn_df).mark_line(point=True, color="#E45756").encode(
+                    x=alt.X("Month:N", sort=order, title="Month"),
+                    y=alt.Y("Cumulative:Q", title="Cumulative burn"),
+                    tooltip=["Month", "Cumulative"])
+                .properties(height=200))
+        st.altair_chart(line, use_container_width=True)
 
     st.divider()
 
