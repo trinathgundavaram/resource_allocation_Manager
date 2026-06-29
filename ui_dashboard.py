@@ -32,10 +32,13 @@ def _data_version():
     return f"seq{db.get_write_seq()}|{a['c']}-{a['m']}"
 
 
-def _alloc_status(delivery_pct):
-    if delivery_pct >= 100:
+def _alloc_status(total_pct):
+    """Status is based on TOTAL allocation (baseline + delivery). A resource on
+    a baseline at 100% is fully allocated; 'No allocation' means not onboarded
+    at all (no allocation rows for the month)."""
+    if total_pct >= 100:
         return "Fully allocated"
-    if delivery_pct > 0:
+    if total_pct > 0:
         return "Partially allocated"
     return "No allocation"
 
@@ -56,7 +59,8 @@ def _utilization(year, month, _version):
             "resource": res["name"], "role": logic.role_name(res["role_id"]),
             "manager": logic.manager_name(res["manager_id"]),
             "delivery_pct": round(delivery, 0), "baseline_pct": round(baseline, 0),
-            "status": _alloc_status(delivery),
+            "total_pct": round(baseline + delivery, 0),
+            "status": _alloc_status(baseline + delivery),
             "n_delivery": n_del,
             "delivery_hours": round(del_hours, 1),
             "delivery_cost": round(del_hours * rate, 2),
@@ -73,6 +77,36 @@ def _monthly_burn(year, _version):
     projects = logic.get_projects()
     return [round(sum(logic.project_month_cost(p["id"], year, m) for p in projects), 2)
             for m in range(1, 13)]
+
+
+@st.cache_data(show_spinner=False)
+def _capacity_split(year, _version):
+    """Per-month split of the team's allocated capacity-hours into baseline vs
+    delivery (Jan→Dec). Used for the 'how much of allocation is baseline'
+    indicator at month / YTD / full-year scope."""
+    out = []
+    resources = logic.get_resources(active_only=True)
+    for m in range(1, 13):
+        baseline_h = delivery_h = 0.0
+        for res in resources:
+            hrs = logic.resource_working_hours(res["id"], year, m)
+            for r in logic.get_month_allocations(res["id"], year, m):
+                share = hrs * float(r["percentage"]) / 100.0
+                if r["is_baseline"]:
+                    baseline_h += share
+                else:
+                    delivery_h += share
+        out.append({"baseline": baseline_h, "delivery": delivery_h,
+                    "total": baseline_h + delivery_h})
+    return out
+
+
+def _baseline_share(split):
+    """(month_idx-independent) helper: given a list slice of capacity splits,
+    return baseline / total as a percentage (0 if no allocation)."""
+    b = sum(x["baseline"] for x in split)
+    t = sum(x["total"] for x in split)
+    return (b / t * 100.0) if t > 0 else 0.0
 
 
 def _total_budget(year):
@@ -124,6 +158,7 @@ def render(user):
         _utilization.clear()
         _project_health.clear()
         _monthly_burn.clear()
+        _capacity_split.clear()
         st.rerun()
 
     is_current = (year == today.year and month == today.month)
@@ -153,22 +188,23 @@ def render(user):
 
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Active resources", n)
-    k2.metric("Avg load allocated", f"{avg_load:.0f}%",
-              help="Average % of capacity on delivery (non-baseline) work.")
+    k2.metric("Avg delivery load", f"{avg_load:.0f}%",
+              help="Average % of capacity on delivery (non-baseline) work. "
+                   "The rest of each resource's 100% sits on a baseline.")
     k3.metric("READY projects", usable_projects)
     k4.metric(f"Delivery burn ({MONTH_ABBR[month]})", f"{month_burn:,.0f}")
 
-    # ---- Allocation status breakdown ----
+    # ---- Allocation status breakdown (based on TOTAL allocation) ----
     st.markdown("##### Allocation status")
-    st.caption("Status reflects **delivery (non-baseline) work**. A resource "
-               "sitting entirely on a baseline counts as *No delivery* — it is "
-               "allocated to a baseline, just not to delivery work.")
+    st.caption("Based on **total** allocation. A resource at 100% — whether on "
+               "delivery or a baseline — is *Fully allocated*. *No allocation* "
+               "means the resource isn't onboarded for this month yet.")
     s1, s2, s3 = st.columns(3)
-    s1.metric("✅ Fully allocated", fully, help="100% on delivery projects.")
-    s2.metric("🟡 Partially allocated", partial, help="Some delivery, some baseline.")
-    s3.metric("⚪ No delivery (baseline only)", none_alloc,
-              help="Entirely on a baseline; no delivery work.")
-    status_order = ["Fully allocated", "Partially allocated", "No delivery (baseline)"]
+    s1.metric("✅ Fully allocated", fully, help="Totals 100% (delivery + baseline).")
+    s2.metric("🟡 Partially allocated", partial, help="Totals between 1–99%.")
+    s3.metric("⚪ No allocation", none_alloc,
+              help="No allocation rows yet — not onboarded for this month.")
+    status_order = ["Fully allocated", "Partially allocated", "No allocation"]
     status_df = pd.DataFrame({"Status": status_order,
                               "Resources": [fully, partial, none_alloc]})
     status_chart = (
@@ -181,6 +217,19 @@ def render(user):
             tooltip=["Status", "Resources"])
         .properties(height=140))
     st.altair_chart(status_chart, use_container_width=True)
+
+    # ---- Baseline share of allocation (month / YTD / full year) ----
+    split = _capacity_split(year, version)
+    bs_month = _baseline_share(split[month - 1:month])
+    bs_ytd = _baseline_share(split[:month])
+    bs_fy = _baseline_share(split)
+    st.markdown("##### Baseline share of allocation")
+    st.caption("Of all allocated capacity (hours), how much sits on baseline "
+               "(non-delivery) work. High = lots of bench/run-the-business time.")
+    b1, b2, b3 = st.columns(3)
+    b1.metric(f"This month ({MONTH_ABBR[month]})", f"{bs_month:.0f}%")
+    b2.metric(f"YTD (Jan–{MONTH_ABBR[month]})", f"{bs_ytd:.0f}%")
+    b3.metric(f"Full year ({year})", f"{bs_fy:.0f}%")
 
     # ---- Financials: YTD / projection / budget remaining ----
     monthly = _monthly_burn(year, version)
