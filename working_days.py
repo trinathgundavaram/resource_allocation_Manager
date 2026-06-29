@@ -27,16 +27,8 @@ def last_day_of_month(year, month):
     return _dt.date(year, month, last)
 
 
-def first_day_of_month(year, month):
-    return _dt.date(year, month, 1)
-
-
 def month_label(year, month):
     return f"{MONTH_ABBR[month]} {year}"
-
-
-def month_label_full(year, month):
-    return f"{MONTH_NAMES[month]} {year}"
 
 
 def working_days(month, year, holidays=None):
@@ -129,20 +121,3 @@ def months_between(start_year, start_month, end_year, end_month):
 def month_index(year, month):
     """Absolute month index used for ordering / comparisons."""
     return year * 12 + month
-
-
-def add_months(year, month, delta):
-    """Return (year, month) shifted by delta months."""
-    idx = month_index(year, month) - 1 + delta
-    return idx // 12, idx % 12 + 1
-
-
-if __name__ == "__main__":
-    # Phase 2 smoke test.
-    print("Working days Jul 2026 (no holidays):", working_days(7, 2026))
-    print("Working days Jul 2026 (Jul 4 holiday):",
-          working_days(7, 2026, ["2026-07-03"]))
-    print("Working hours Jul 2026 @8h/5d:",
-          working_hours(7, 2026, 8, 5))
-    print("Months Jan-Apr 2026:",
-          [month_label(y, m) for y, m in months_between(2026, 1, 2026, 4)])

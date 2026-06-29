@@ -25,7 +25,8 @@ See `DEPLOY.md` for starting fresh and AWS deployment.
 | `database.py` | SQLite schema (WAL, STRICT, CHECK constraints), connections, backups. |
 | `working_days.py` | Working-day / working-hour calendar maths. |
 | `logic.py` | All business rules: 100% allocation, baseline maths, concurrency, lifecycle, financials, annual reset. |
-| `ui_setup.py` | Resources, Projects, Clients, Roles, Managers, Holidays. |
+| `ui_common.py` | Shared UI helper (clear form fields after a successful save). |
+| `ui_setup.py` | Resources, Projects, Roles, Managers, Holidays. |
 | `ui_pipeline.py` | Kanban (static) + Project Detail (tabs: Details/Assumptions/Attachments/Status History/Allocations). |
 | `ui_grid.py` | Monthly allocation grid (green=100%, red≠100%). |
 | `ui_assign.py` | Shared assignment panel (same-% / per-month modes, live preview, concurrency-safe save). |
@@ -33,11 +34,15 @@ See `DEPLOY.md` for starting fresh and AWS deployment.
 | `ui_availability.py` | Spare-capacity finder with assign panel. |
 | `ui_financials.py` | Per-project economics, baseline actual-vs-budget, cross-project burn. |
 | `ui_dashboard.py` | Summary, project health, utilization, end-warnings, closure prompts, new-year banner. |
-| `ui_audit.py` | Filterable audit trail of allocation changes + Excel export. |
-| `ui_reports.py` | Excel exports (grid, financials, utilization, cross-project, audit). |
+| `ui_audit.py` | Activity log of every change (create/update/delete/status/assign) + allocation history, filterable + Excel export. |
+| `ui_reports.py` | Excel exports (grid, weekly hours, financials, utilization, cross-project, audit). |
 | `ui_settings.py` | Backup info, manual backup, restore (confirmation). |
+| `reset.py` | CLI helper to wipe / re-create an empty database. |
 | `uploads/` | Project attachments. |
 | `backups/` | Auto/manual DB backups (last 30 kept). |
+
+Docs: `LEARN.md` (beginner code walkthrough + Streamlit cheat-sheet), `DEPLOY.md`
+(fresh start + AWS deployment).
 
 ## Core rules enforced
 
@@ -47,5 +52,5 @@ See `DEPLOY.md` for starting fresh and AWS deployment.
 - Multiple baselines supported; hard-block if a baseline would go negative.
 - **Concurrent-edit protection**: baseline is re-read fresh on save inside a transaction; mismatched state is rejected and rolled back.
 - Allocations must stay within the project's start/end window.
-- Project lifecycle `ESTIMATE → … → READY_TO_USE → CLOSED` (plus `CANCELLED`/`DENIED`); only `READY_TO_USE` projects appear in grid/views/assignment.
+- Project lifecycle statuses `ESTIMATE … READY_TO_USE … CLOSED` (plus `CANCELLED`/`DENIED`/`NOT_ALLOCATED`); a project may move directly to any status (reason optional). Only `READY_TO_USE` projects appear in grid/views/assignment.
 - Annual reset archives the previous year on the first run of a new year.

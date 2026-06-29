@@ -443,12 +443,3 @@ def restore_backup(backup_path):
 def auto_backup_on_startup():
     """Run one backup per process start (guarded so reruns don't spam)."""
     make_backup()
-
-
-if __name__ == "__main__":
-    # Phase 1 smoke test: create schema and report tables.
-    init_db()
-    rows = query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-    print("Tables created:")
-    for r in rows:
-        print("  -", r["name"])

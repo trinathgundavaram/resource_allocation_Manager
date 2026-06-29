@@ -4,12 +4,13 @@ ui_dashboard.py
 Landing dashboard.
 
 Allocation model note: a resource is always at 100% (baseline absorbs the
-remainder), so "allocation" here means *delivery* (non-baseline) work. Time
-sitting on a baseline is NOT counted as free capacity - a resource fully on a
-baseline simply has *no delivery allocation*. Resources are bucketed as:
-  * Fully allocated   - 100% on delivery projects (0% baseline)
-  * Partially allocated - some delivery, some baseline
-  * No allocation     - entirely on baseline (no delivery work)
+remainder). "Portfolio assignment" here means work on non-baseline (portfolio)
+projects. Time sitting on a baseline is NOT counted as free capacity - a
+resource fully on a baseline simply has *no portfolio assignment*. Resources
+are bucketed by TOTAL allocation as:
+  * Fully allocated   - totals 100% (portfolio + baseline)
+  * Partially allocated - totals 1-99%
+  * No allocation     - not onboarded for the month (no rows)
 
 Heavy per-resource/project maths is cached and keyed to a write-counter data
 version, so any change anywhere refreshes it instantly.
@@ -45,7 +46,8 @@ def _alloc_status(total_pct):
 
 @st.cache_data(show_spinner="Crunching allocations...")
 def _utilization(year, month, _version):
-    """Per-resource delivery load for the month."""
+    """Per-resource portfolio-assignment load for the month (delivery_* keys
+    are kept internally for the non-baseline portion)."""
     out = []
     for res in logic.get_resources(active_only=True):
         rows = logic.get_month_allocations(res["id"], year, month)
@@ -199,7 +201,7 @@ def render(user):
             f"**{year}** has no allocations recorded yet. Creating a project "
             "or resource does not allocate anyone - head to the **Monthly Grid** "
             "and use *Put a resource on a baseline* to onboard each resource, then "
-            "assign delivery work.")
+            "assign portfolio work.")
 
     _action_items(user)
     st.divider()
@@ -219,11 +221,11 @@ def render(user):
         usable_projects = len(logic.get_projects(usable_only=True))
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Active resources", n)
-        k2.metric("Avg delivery load", f"{avg_load:.0f}%",
-                  help="Average % of capacity on delivery (non-baseline) work. "
+        k2.metric("Avg portfolio assignment", f"{avg_load:.0f}%",
+                  help="Average % of capacity on portfolio (non-baseline) work. "
                        "The rest of each resource's 100% sits on a baseline.")
         k3.metric("READY projects", usable_projects)
-        k4.metric(f"Delivery burn ({MONTH_ABBR[month]})", f"{month_burn:,.0f}")
+        k4.metric(f"Portfolio burn ({MONTH_ABBR[month]})", f"{month_burn:,.0f}")
 
     st.write("")
 
@@ -231,10 +233,10 @@ def render(user):
     with st.container(border=True):
         st.subheader("Allocation status")
         st.caption("Based on **total** allocation. A resource at 100% - whether "
-                   "on delivery or a baseline - is *Fully allocated*. "
+                   "on a portfolio project or a baseline - is *Fully allocated*. "
                    "*No allocation* means not onboarded for this month yet.")
         s1, s2, s3 = st.columns(3)
-        s1.metric("Fully allocated", fully, help="Totals 100% (delivery + baseline).")
+        s1.metric("Fully allocated", fully, help="Totals 100% (portfolio + baseline).")
         s2.metric("Partially allocated", partial, help="Totals between 1-99%.")
         s3.metric("No allocation", none_alloc,
                   help="No allocation rows yet - not onboarded for this month.")
@@ -270,7 +272,7 @@ def render(user):
             bl_note = "No baseline projects defined."
         st.subheader("Baseline share of allocation")
         st.caption("Of all allocated capacity (hours), how much sits on baseline "
-                   "(non-delivery) work - combined across every baseline project. "
+                   "(non-portfolio) work - combined across every baseline project. "
                    + bl_note)
         b1, b2, b3 = st.columns(3)
         b1.metric(f"This month ({MONTH_ABBR[month]})", f"{bs_month:.0f}%")
@@ -479,7 +481,7 @@ def _utilization_section(util):
     state = f3.selectbox(
         "Allocation status",
         ["All", "Fully allocated", "Partially allocated", "No allocation",
-         "Under-utilized (<50% delivery)"], key="dash_state")
+         "Under-utilized (<50% portfolio)"], key="dash_state")
 
     def keep(u):
         if search and search not in u["resource"].lower() \
@@ -490,7 +492,7 @@ def _utilization_section(util):
         if state in ("Fully allocated", "Partially allocated", "No allocation") \
                 and u["status"] != state:
             return False
-        if state == "Under-utilized (<50% delivery)" and u["delivery_pct"] >= 50:
+        if state == "Under-utilized (<50% portfolio)" and u["delivery_pct"] >= 50:
             return False
         return True
 
@@ -505,7 +507,7 @@ def _utilization_section(util):
     df = pd.DataFrame([{
         "Resource": u["resource"], "Role": u["role"], "Manager": u["manager"],
         "Status": u["status"],
-        "Delivery %": u["delivery_pct"], "Baseline %": u["baseline_pct"],
+        "Portfolio Assignment %": u["delivery_pct"], "Baseline %": u["baseline_pct"],
         "Projects": u["n_delivery"], "Hours": u["delivery_hours"],
         "Cost": u["delivery_cost"], "On": u["projects"],
     } for u in filtered])
@@ -514,8 +516,8 @@ def _utilization_section(util):
         df, use_container_width=True, hide_index=True,
         height=min(620, 70 + 35 * len(df)),
         column_config={
-            "Delivery %": st.column_config.ProgressColumn(
-                "Delivery %", min_value=0, max_value=100, format="%d%%"),
+            "Portfolio Assignment %": st.column_config.ProgressColumn(
+                "Portfolio Assignment %", min_value=0, max_value=100, format="%d%%"),
             "Baseline %": st.column_config.NumberColumn("Baseline %", format="%d%%"),
             "Cost": st.column_config.NumberColumn("Cost", format="$%.0f"),
             "On": st.column_config.TextColumn("On projects", width="medium"),

@@ -26,7 +26,6 @@ from working_days import (
     month_index,
     month_label,
     month_weeks,
-    add_months,
 )
 
 # --------------------------------------------------------------------------- #
@@ -114,10 +113,6 @@ def get_roles():
     return db.query("SELECT * FROM roles ORDER BY name")
 
 
-def get_clients():
-    return db.query("SELECT * FROM clients ORDER BY name")
-
-
 def get_managers():
     return db.query("SELECT * FROM managers ORDER BY name")
 
@@ -166,11 +161,6 @@ def get_baseline_projects(usable_only=True):
 
 def role_name(role_id):
     r = db.query_one("SELECT name FROM roles WHERE id = ?", (role_id,))
-    return r["name"] if r else "-"
-
-
-def client_name(client_id):
-    r = db.query_one("SELECT name FROM clients WHERE id = ?", (client_id,))
     return r["name"] if r else "-"
 
 

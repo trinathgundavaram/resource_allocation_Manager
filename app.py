@@ -144,8 +144,5 @@ def main():
     page(current_user())
 
 
-if __name__ == "__main__":
-    main()
-else:
-    # Streamlit imports the module rather than running __main__.
-    main()
+# Streamlit executes this script top-to-bottom on every run.
+main()
