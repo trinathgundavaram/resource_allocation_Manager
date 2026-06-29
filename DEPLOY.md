@@ -10,37 +10,34 @@ time the app runs.
 
 ### Start a brand-new, empty system (your own data only)
 
-You have two easy options.
-
-**Option A — environment variable (recommended for a real deployment).**
-Run the app with sample-data seeding turned off:
+**This is the default.** Just run the app on a fresh machine — no demo data is
+loaded:
 
 ```bash
-# macOS / Linux
-RA_SEED_SAMPLE_DATA=0 streamlit run app.py
-
-# Windows (PowerShell)
-$env:RA_SEED_SAMPLE_DATA=0; streamlit run app.py
+streamlit run app.py
 ```
 
-With a fresh machine (no `allocations.db` yet) this creates all tables **empty**.
-You then enter your real data through the **Setup** screens (Roles → Managers →
-Resources → Projects → Holidays), promote projects to `READY_TO_USE`, and start
-allocating. Sample/demo data is never loaded.
+With no `allocations.db` yet this creates all tables **empty**. You then enter
+your real data through the **Setup** screens (Roles → Managers → Resources →
+Projects → Holidays), promote projects to `READY_TO_USE`, and start allocating.
 
-**Option B — the reset helper.**
+**Loading the demo dataset (optional).** Sample data is opt-in:
+
+```bash
+RA_SEED_SAMPLE_DATA=1 streamlit run app.py   # load demo data if the DB is empty
+# or, explicitly:
+python reset.py --sample                      # wipe + load the demo dataset
+```
+
+**The reset helper:**
 
 ```bash
 python reset.py --empty     # wipe + create empty tables now (no demo data)
 python reset.py --sample    # wipe + load the demo dataset
-python reset.py             # just wipe; next start decides based on RA_SEED_SAMPLE_DATA
+python reset.py             # just wipe; next start creates empty tables
 ```
 
 `reset.py` always backs up the current database to `backups/` before wiping.
-
-> Tip: if you already started once *with* sample data and want it gone, run
-> `python reset.py --empty` (or delete `allocations.db`) and restart with
-> `RA_SEED_SAMPLE_DATA=0`.
 
 ---
 

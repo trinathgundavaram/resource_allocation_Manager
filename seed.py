@@ -13,8 +13,16 @@ from working_days import months_between, month_index
 
 
 def is_empty():
-    row = db.query_one("SELECT COUNT(*) AS c FROM resources")
-    return row["c"] == 0
+    """True only if every table the seeder writes is empty.
+
+    Checking all of these (not just resources) prevents a duplicate-key crash
+    when a previous run left partial reference data behind.
+    """
+    for table in ("roles", "clients", "managers", "resources", "projects",
+                  "holidays"):
+        if db.query_one(f"SELECT COUNT(*) AS c FROM {table}")["c"] > 0:
+            return False
+    return True
 
 
 def _insert(sql, params):

@@ -8,8 +8,8 @@ the database file so you can begin clean.
 Usage:
     python reset.py            Delete the database (and WAL/backups side files).
                                Next `streamlit run app.py` recreates EMPTY tables.
-                               Sample data is loaded only if RA_SEED_SAMPLE_DATA
-                               is not 0/false/no.
+                               Sample data is NEVER loaded unless you opt in with
+                               RA_SEED_SAMPLE_DATA=1.
 
     python reset.py --empty    Delete, then create the empty schema now (no
                                sample data). Ready for you to enter real data
@@ -51,7 +51,7 @@ def main():
         print("Loaded sample data.")
     else:
         print("Database removed. Next app start will create empty tables "
-              "(sample data loads only if RA_SEED_SAMPLE_DATA is not 0).")
+              "(sample data loads only if RA_SEED_SAMPLE_DATA=1).")
 
 
 if __name__ == "__main__":

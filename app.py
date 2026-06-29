@@ -15,10 +15,10 @@ import database as db
 import logic
 import seed as seed_module
 
-# Set RA_SEED_SAMPLE_DATA=0 (or false/no) to start with an EMPTY database —
-# the tables are still created automatically, just with no demo data. Default
-# is to load the sample dataset the first time the DB is empty.
-SEED_SAMPLE = os.getenv("RA_SEED_SAMPLE_DATA", "1").lower() not in ("0", "false", "no")
+# Sample/demo data is OPT-IN. By default the app starts with an EMPTY database
+# (tables are still created automatically). To load the demo dataset, set
+# RA_SEED_SAMPLE_DATA=1 (or true/yes), or run `python reset.py --sample`.
+SEED_SAMPLE = os.getenv("RA_SEED_SAMPLE_DATA", "0").lower() in ("1", "true", "yes")
 
 # UI modules
 import ui_dashboard
@@ -48,7 +48,11 @@ def startup():
         return
     db.init_db()                       # creates all tables if missing
     if SEED_SAMPLE:
-        seed_module.seed()             # loads sample data only when DB is empty
+        try:
+            seed_module.seed()         # loads sample data only when DB is empty
+        except Exception as e:
+            # Never let seeding crash the app (e.g. a partially-populated DB).
+            st.warning(f"Sample data not loaded: {e}")
     db.auto_backup_on_startup()        # timestamped copy + prune to 30
     logic.maybe_annual_reset()         # archive previous year if new year
     st.session_state["_booted"] = True

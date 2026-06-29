@@ -10,9 +10,17 @@ cd resource_allocator
 streamlit run app.py
 ```
 
-On first launch the database is created and seeded with sample data (8 resources,
-8 projects across the lifecycle, holidays, billing rates, budgets and a full year
-of baseline + delivery allocations). A timestamped backup is taken on every start.
+On first launch the database is created with **empty** tables — you enter your
+own data via the Setup screens. A timestamped backup is taken on every start.
+
+To explore with the demo dataset instead (8 resources, 8 projects across the
+lifecycle, holidays, rates, budgets and a full year of allocations), opt in:
+
+```bash
+RA_SEED_SAMPLE_DATA=1 streamlit run app.py   # or:  python reset.py --sample
+```
+
+See `DEPLOY.md` for starting fresh and AWS deployment.
 
 ## Files
 
