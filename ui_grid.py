@@ -84,6 +84,9 @@ def render(user):
                f"{MONTH_NAMES[month]} {sel_year}.")
 
     st.divider()
+    _onboard_baseline(user, resources, baselines, sel_year, month, green, len(totals))
+
+    st.divider()
     st.subheader("✏️ Edit a cell")
     st.caption("Select a resource and a project, then assign in the panel.")
     rmap = {f"{r['name']} ({logic.role_name(r['role_id'])})": r["id"]
@@ -105,3 +108,46 @@ def render(user):
             locked_resource=True, locked_project=True, key="grid_panel")
     if saved:
         st.rerun()
+
+
+def _onboard_baseline(user, resources, baselines, sel_year, month, green, total):
+    """One-click action to place a resource onto a baseline at 100% across a
+    range of months (the onboarding step for brand-new resources)."""
+    needs_attention = green < total
+    with st.expander("🚀 Put a resource on a baseline (onboarding)",
+                     expanded=needs_attention):
+        st.caption("A brand-new resource has no allocations. Place them on a "
+                   "baseline at 100% across a month range so they total 100% and "
+                   "can take delivery work. Months that already have delivery work "
+                   "keep it — the baseline just carries the remainder.")
+        if not baselines:
+            st.info("Create a baseline project first: Setup → Projects (tick "
+                    "**Is baseline**), then promote it to READY_TO_USE in the "
+                    "Pipeline.")
+            return
+        rmap = {f"{r['name']} ({logic.role_name(r['role_id'])})": r["id"]
+                for r in resources}
+        bmap = {logic.project_label(p): p["id"] for p in baselines}
+        oc1, oc2 = st.columns(2)
+        rsel = oc1.selectbox("Resource", list(rmap.keys()), key="ob_res")
+        bsel = oc2.selectbox("Baseline project", list(bmap.keys()), key="ob_base")
+        oc3, oc4 = st.columns(2)
+        from_m = oc3.selectbox("From month", list(range(1, 13)), index=month - 1,
+                               format_func=lambda x: MONTH_NAMES[x], key="ob_from")
+        to_m = oc4.selectbox("To month", list(range(1, 13)), index=11,
+                             format_func=lambda x: MONTH_NAMES[x], key="ob_to")
+        if to_m < from_m:
+            st.error("To month must be on/after From month.")
+            return
+        label = (f"Put on baseline at 100% · "
+                 f"{MONTH_NAMES[from_m][:3]}–{MONTH_NAMES[to_m][:3]} {sel_year}")
+        if st.button(label, key="ob_go"):
+            try:
+                for m in range(from_m, to_m + 1):
+                    logic.set_baseline_allocation(rmap[rsel], bmap[bsel], sel_year,
+                                                  m, user, "onboarding to baseline")
+                st.success(f"{rsel} placed on baseline for "
+                           f"{MONTH_NAMES[from_m]}–{MONTH_NAMES[to_m]} {sel_year}.")
+                st.rerun()
+            except logic.ValidationError as e:
+                st.error(str(e))
