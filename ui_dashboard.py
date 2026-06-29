@@ -80,6 +80,26 @@ def _monthly_burn(year, _version):
 
 
 @st.cache_data(show_spinner=False)
+def _project_monthly(year, project_id, _version):
+    """Per-month allocated capacity-hours and planned burn (cost) for one
+    project across all resources (Jan→Dec)."""
+    out = []
+    for m in range(1, 13):
+        rows = db.query(
+            """SELECT resource_id, percentage FROM allocations
+               WHERE project_id=? AND year=? AND month=? AND is_active=1""",
+            (project_id, year, m))
+        hours = cost = 0.0
+        for r in rows:
+            wh = logic.resource_working_hours(r["resource_id"], year, m)
+            h = wh * float(r["percentage"]) / 100.0
+            hours += h
+            cost += h * logic.billing_rate_for_month(r["resource_id"], year, m)
+        out.append({"hours": round(hours, 2), "cost": round(cost, 2)})
+    return out
+
+
+@st.cache_data(show_spinner=False)
 def _capacity_split(year, _version):
     """Per-month split of the team's allocated capacity-hours into baseline vs
     delivery (Jan→Dec). Used for the 'how much of allocation is baseline'
@@ -165,6 +185,7 @@ def render(user):
         _project_health.clear()
         _monthly_burn.clear()
         _capacity_split.clear()
+        _project_monthly.clear()
         st.rerun()
 
     is_current = (year == today.year and month == today.month)
@@ -229,13 +250,26 @@ def render(user):
     bs_month = _baseline_share(split[month - 1:month])
     bs_ytd = _baseline_share(split[:month])
     bs_fy = _baseline_share(split)
+    baselines = logic.get_baseline_projects(usable_only=False)
+    if len(baselines) == 1:
+        bl_note = f"Baseline: **{logic.project_label(baselines[0])}**."
+    elif len(baselines) > 1:
+        bl_note = ("**Combined across " + str(len(baselines)) + " baselines**: "
+                   + ", ".join(logic.project_label(b) for b in baselines)
+                   + ". (Use the project picker below for a single baseline.)")
+    else:
+        bl_note = "No baseline projects defined."
     st.markdown("##### Baseline share of allocation")
     st.caption("Of all allocated capacity (hours), how much sits on baseline "
-               "(non-delivery) work. High = lots of bench/run-the-business time.")
+               "(non-delivery) work — combined across every baseline project. "
+               + bl_note)
     b1, b2, b3 = st.columns(3)
     b1.metric(f"This month ({MONTH_ABBR[month]})", f"{bs_month:.0f}%")
     b2.metric(f"YTD (Jan–{MONTH_ABBR[month]})", f"{bs_ytd:.0f}%")
     b3.metric(f"Full year ({year})", f"{bs_fy:.0f}%")
+
+    # ---- Per-project allocation share + burn (picker) ----
+    _project_allocation_section(year, month, version, split)
 
     # ---- Financials: YTD / projection / budget remaining ----
     monthly = _monthly_burn(year, version)
@@ -292,6 +326,54 @@ def render(user):
 
     # ---- Resource utilization ----
     _utilization_section(util)
+
+
+def _project_allocation_section(year, month, version, split):
+    """Project picker showing the same allocation-share metrics for any chosen
+    project, plus that project's monthly + cumulative burn charts."""
+    st.markdown("##### Project allocation & burn")
+    projects = logic.get_projects()
+    if not projects:
+        st.info("No projects yet.")
+        return
+    pmap = {logic.project_label(p) + (" ⭐" if p["is_baseline"] else ""): p["id"]
+            for p in projects}
+    label = st.selectbox("Project", list(pmap.keys()), key="dash_proj_pick")
+    pid = pmap[label]
+
+    pm = _project_monthly(year, pid, version)
+    p_hours = [x["hours"] for x in pm]
+    tot = [s["total"] for s in split]
+
+    def share(num, den):
+        d = sum(den)
+        return (sum(num) / d * 100.0) if d > 0 else 0.0
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric(f"Alloc share — {MONTH_ABBR[month]}",
+              f"{share(p_hours[month-1:month], tot[month-1:month]):.0f}%")
+    c2.metric(f"Alloc share — YTD (Jan–{MONTH_ABBR[month]})",
+              f"{share(p_hours[:month], tot[:month]):.0f}%")
+    c3.metric(f"Alloc share — FY {year}", f"{share(p_hours, tot):.0f}%")
+    st.caption("Allocation share = this project's allocated capacity-hours ÷ the "
+               "team's total allocated hours, for the period.")
+
+    order = [MONTH_ABBR[m] for m in range(1, 13)]
+    pdf = pd.DataFrame({
+        "Month": order,
+        "Planned burn": [x["cost"] for x in pm],
+        "Cumulative": [round(c, 2) for c in pd.Series([x["cost"] for x in pm]).cumsum()],
+    })
+    bar = (alt.Chart(pdf).mark_bar(color="#4C78A8").encode(
+               x=alt.X("Month:N", sort=order, title="Month"),
+               y=alt.Y("Planned burn:Q", title="Planned burn"),
+               tooltip=["Month", "Planned burn"]).properties(height=220))
+    st.altair_chart(bar, use_container_width=True)
+    line = (alt.Chart(pdf).mark_line(point=True, color="#E45756").encode(
+                x=alt.X("Month:N", sort=order, title="Month"),
+                y=alt.Y("Cumulative:Q", title="Cumulative burn"),
+                tooltip=["Month", "Cumulative"]).properties(height=180))
+    st.altair_chart(line, use_container_width=True)
 
 
 def _action_items(user):
