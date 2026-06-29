@@ -49,8 +49,10 @@ def _simple_table(table, label, user):
         name = st.text_input(f"New {label} name", key=f"add_{table}_name")
         if st.form_submit_button(f"Add {label}") and name.strip():
             try:
-                db.execute(f"INSERT INTO {table} (name, created_at) VALUES (?,?)",
-                           (name.strip(), db.now_iso()))
+                nid = db.execute(f"INSERT INTO {table} (name, created_at) VALUES (?,?)",
+                                 (name.strip(), db.now_iso()))
+                db.audit_log("CREATE", table, nid,
+                             f"Created {label} '{name.strip()}'", user)
                 st.session_state[f"_clr_add_{table}"] = True
                 st.success(f"Added {label} '{name}'.")
                 st.rerun()
@@ -69,6 +71,8 @@ def _simple_table(table, label, user):
             if c1.button("Rename", key=f"do_rn_{table}") and new_name.strip():
                 db.execute(f"UPDATE {table} SET name=? WHERE id=?",
                            (new_name.strip(), ids[sel]))
+                db.audit_log("UPDATE", table, ids[sel],
+                             f"Renamed {label} #{ids[sel]} to '{new_name.strip()}'", user)
                 st.success("Renamed."); st.rerun()
             refs = _REF_NULL.get(table, [])
             if refs:
@@ -82,6 +86,8 @@ def _simple_table(table, label, user):
                             f"UPDATE {ref_tbl} SET {ref_col}=NULL WHERE {ref_col}=?",
                             (ids[sel],))
                     db.execute(f"DELETE FROM {table} WHERE id=?", (ids[sel],))
+                    db.audit_log("DELETE", table, ids[sel],
+                                 f"Deleted {label} '{sel}'", user)
                     st.success("Deleted."); st.rerun()
                 except Exception as e:
                     st.error(f"Could not delete: {e}")
@@ -124,6 +130,9 @@ def _resources(user):
                     """INSERT INTO resource_billing_rates (resource_id, rate,
                        effective_from_date, created_by, created_at) VALUES (?,?,?,?,?)""",
                     (rid, rate, eff.isoformat(), user, db.now_iso()))
+                db.audit_log("CREATE", "resource", rid,
+                             f"Created resource '{name.strip()}' ({role}, rate {rate:g})",
+                             user)
                 st.session_state["_clr_add_resource"] = True
                 st.success(f"Added {name}.")
                 st.rerun()
@@ -182,6 +191,10 @@ def _resources(user):
                days_per_week=?, status=? WHERE id=?""",
             (new_name.strip(), role_map.get(role_sel), mgr_map.get(mgr_sel),
              new_hpd, new_dpw, new_status, res["id"]))
+        db.audit_log("UPDATE", "resource", res["id"],
+                     f"Updated resource '{new_name.strip()}' "
+                     f"(role {role_sel}, mgr {mgr_sel}, {new_hpd:g}h/{new_dpw:g}d, {new_status})",
+                     user)
         st.success("Saved."); st.rerun()
 
     # Billing rate history + add
@@ -205,6 +218,9 @@ def _resources(user):
                 """INSERT INTO resource_billing_rates (resource_id, rate,
                    effective_from_date, created_by, created_at) VALUES (?,?,?,?,?)""",
                 (res["id"], nr, ne.isoformat(), user, db.now_iso()))
+            db.audit_log("CREATE", "resource", res["id"],
+                         f"Added billing rate {nr:g} for '{res['name']}' "
+                         f"effective {ne.isoformat()}", user)
             st.success("Rate added.")
 
 
@@ -266,6 +282,10 @@ def _projects(user):
                            new_status, changed_at, changed_by, reason)
                            VALUES (?,?,?,?,?,?)""",
                         (pid, None, "ESTIMATE", db.now_iso(), user, "Created"))
+                    db.audit_log("CREATE", "project", pid,
+                                 f"Created project '{name.strip()}'"
+                                 + (f" [{code.strip()}]" if code.strip() else "")
+                                 + (" (baseline)" if is_base else ""), user)
                     st.session_state["_clr_add_project"] = True
                     st.success(f"Created '{name}'. Edit full lifecycle in Project Pipeline.")
                     st.rerun()
@@ -308,10 +328,12 @@ def _holidays(user):
         nm = c2.text_input("Name", key="add_holiday_name")
         if st.form_submit_button("Add holiday") and nm.strip():
             try:
-                db.execute(
+                hid = db.execute(
                     "INSERT INTO holidays (holiday_date, name, created_at) VALUES (?,?,?)",
                     (d.isoformat(), nm.strip(), db.now_iso()))
                 logic.clear_holiday_cache()
+                db.audit_log("CREATE", "holiday", hid,
+                             f"Added holiday '{nm.strip()}' on {d.isoformat()}", user)
                 st.session_state["_clr_add_holiday"] = True
                 st.success(f"Added {nm}.")
                 st.rerun()
@@ -328,6 +350,7 @@ def _holidays(user):
         if st.button("Delete holiday"):
             db.execute("DELETE FROM holidays WHERE id=?", (ids[sel],))
             logic.clear_holiday_cache()
+            db.audit_log("DELETE", "holiday", ids[sel], f"Deleted holiday '{sel}'", user)
             st.success("Deleted."); st.rerun()
     else:
         st.info("No holidays defined.")

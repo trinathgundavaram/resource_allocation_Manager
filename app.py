@@ -52,7 +52,50 @@ startup()
 # Current user (acts as changed_by / assigned_by everywhere).
 # --------------------------------------------------------------------------- #
 def current_user():
-    return st.session_state.get("current_user", "manager")
+    return st.session_state.get("current_user")
+
+
+def pick_user_gate():
+    """Block the app until a manager identity is chosen for the session.
+
+    Once set it is locked for the rest of the session (no switching). The name
+    must be a real name — the literal word "manager" is rejected.
+    """
+    if st.session_state.get("current_user"):
+        return  # already chosen and locked
+    st.title("👤 Who are you?")
+    st.caption("Pick the manager you're acting as for this session. Everything "
+               "you create or change is recorded against this name, and it "
+               "can't be changed until you restart the session.")
+
+    managers = [m["name"] for m in logic.get_managers()]
+    CREATE = "➕ Create a new manager…"
+    if managers:
+        choice = st.selectbox("Manager", managers + [CREATE])
+    else:
+        st.info("No managers exist yet — create one to continue.")
+        choice = CREATE
+
+    if choice == CREATE:
+        new = st.text_input("Manager name")
+        if st.button("Continue", disabled=not new.strip()):
+            nm = new.strip()
+            if nm.lower() == "manager":
+                st.error("Please enter your actual name, not the word “manager”.")
+            else:
+                existing = next((m for m in managers if m.lower() == nm.lower()), None)
+                if not existing:
+                    db.execute("INSERT INTO managers (name, created_at) VALUES (?,?)",
+                               (nm, db.now_iso()))
+                    db.audit_log("CREATE", "manager", None,
+                                 f"Created manager '{nm}' (session sign-in)", nm)
+                st.session_state["current_user"] = existing or nm
+                st.rerun()
+    else:
+        if st.button(f"Continue as {choice}"):
+            st.session_state["current_user"] = choice
+            st.rerun()
+    st.stop()
 
 
 # --------------------------------------------------------------------------- #
@@ -75,18 +118,9 @@ PAGES = {
 def sidebar():
     st.sidebar.title("📊 Resource Allocator")
 
-    managers = [m["name"] for m in logic.get_managers()] or ["manager"]
-    options = ["manager"] + managers
-    # de-dup preserving order
-    seen, opts = set(), []
-    for o in options:
-        if o not in seen:
-            seen.add(o); opts.append(o)
-    st.session_state.setdefault("current_user", opts[0])
-    st.session_state["current_user"] = st.sidebar.selectbox(
-        "Acting as", opts, index=opts.index(st.session_state["current_user"])
-        if st.session_state["current_user"] in opts else 0,
-    )
+    # Acting-as is fixed for the session (chosen at the sign-in gate).
+    st.sidebar.markdown(f"**Acting as:** {current_user()}")
+    st.sidebar.caption("Locked for this session.")
 
     st.sidebar.divider()
     choice = st.sidebar.radio("Navigate", list(PAGES.keys()),
@@ -104,6 +138,7 @@ def sidebar():
 
 
 def main():
+    pick_user_gate()            # blocks until a manager identity is chosen
     choice = sidebar()
     page = PAGES[choice]
     page(current_user())

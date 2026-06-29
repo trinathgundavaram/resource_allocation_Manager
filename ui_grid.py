@@ -147,6 +147,10 @@ def _onboard_baseline(user, resources, baselines, sel_year, month, green, total)
                 for m in range(from_m, to_m + 1):
                     logic.set_baseline_allocation(rmap[rsel], bmap[bsel], sel_year,
                                                   m, user, "onboarding to baseline")
+                db.audit_log("ASSIGN", "allocation", bmap[bsel],
+                             f"Onboarded {rsel} to baseline {bsel} "
+                             f"({MONTH_NAMES[from_m]}–{MONTH_NAMES[to_m]} {sel_year})",
+                             user)
                 st.cache_data.clear()   # so the Dashboard reflects it immediately
                 st.success(f"✅ {rsel} placed on baseline for "
                            f"{MONTH_NAMES[from_m]}–{MONTH_NAMES[to_m]} {sel_year}.")

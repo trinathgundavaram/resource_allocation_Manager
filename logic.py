@@ -548,6 +548,11 @@ def assign_project(resource_id, project_id, month_pct, baseline_choice,
                 raise ValidationError(
                     f"{month_label(y, m)}: total is {total:.1f}%, must be 100%."
                 )
+        res = get_resource(resource_id)
+        labels = ", ".join(month_label(y, m) for (y, m) in sorted(month_pct))
+        db.audit_log("ASSIGN", "allocation", project_id,
+                     f"Assigned {res['name'] if res else resource_id} to "
+                     f"{project['name']} ({labels})", user, conn=conn)
     return True
 
 
@@ -592,6 +597,12 @@ def remove_assignment(resource_id, project_id, months, baseline_target, user,
                 raise ValidationError(
                     f"{month_label(y, m)}: total is {total:.1f}% after removal."
                 )
+        res = get_resource(resource_id)
+        labels = ", ".join(month_label(y, m) for (y, m) in months)
+        db.audit_log("REMOVE", "allocation", project_id,
+                     f"Removed {res['name'] if res else resource_id} from "
+                     f"{project['name'] if project else project_id} ({labels})",
+                     user, conn=conn)
     return True
 
 
@@ -644,6 +655,10 @@ def change_project_status(project_id, new_status, user, reason=""):
                VALUES (?,?,?,?,?,?)""",
             (project_id, old, new_status, db.now_iso(), user, (reason or "").strip() or None),
         )
+        summary = f"Status {old} → {new_status} ({project['name']})"
+        if (reason or "").strip():
+            summary += f" — {reason.strip()}"
+        db.audit_log("STATUS", "project", project_id, summary, user, conn=conn)
     return True
 
 
@@ -689,6 +704,8 @@ def close_project(project_id, user, reason="auto-closed (past end date)"):
                VALUES (?,?,?,?,?,?)""",
             (project_id, project["status"], "CLOSED", db.now_iso(), user, reason),
         )
+        db.audit_log("STATUS", "project", project_id,
+                     f"Closed {project['name']} — {reason}", user, conn=conn)
     return True
 
 
@@ -708,6 +725,9 @@ def extend_project(project_id, end_month, end_year, user, reason="extended"):
         (project_id, project["status"], project["status"], db.now_iso(), user,
          f"{reason}: end -> {month_label(end_year, end_month)}"),
     )
+    db.audit_log("UPDATE", "project", project_id,
+                 f"Extended {project['name']} end → {month_label(end_year, end_month)}",
+                 user)
     return True
 
 

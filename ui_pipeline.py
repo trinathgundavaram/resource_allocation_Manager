@@ -162,6 +162,8 @@ def _details_tab(project, user):
                    is_baseline=?, color=?, notes=? WHERE id=?""",
                 (name.strip(), code.strip() or None, mmap.get(lead), priority,
                  sm, sy, em, ey, 1 if is_base else 0, color, notes, pid))
+            db.audit_log("UPDATE", "project", pid,
+                         f"Updated project details '{name.strip()}'", user)
             st.success("Saved."); st.rerun()
         except Exception as e:
             st.error(f"Save failed (check end ≥ start): {e}")
@@ -190,6 +192,10 @@ def _details_tab(project, user):
                    effective_from_date, note, created_by, created_at)
                    VALUES (?,?,?,?,?,?)""",
                 (pid, amt, eff.isoformat(), note, user, db.now_iso()))
+            db.audit_log("UPDATE", "project", pid,
+                         f"Budget amendment {amt:g} effective {eff.isoformat()} "
+                         f"on '{project['name']}'"
+                         + (f" — {note}" if note.strip() else ""), user)
             st.session_state[f"_clr_budget_{pid}"] = True
             st.success("Budget amendment added.")
             st.rerun()
@@ -236,6 +242,8 @@ def _assumptions_tab(project, user):
                 """INSERT INTO project_assumptions (project_id, content, created_at, created_by)
                    VALUES (?,?,?,?)""",
                 (pid, content.strip(), db.now_iso(), user))
+            db.audit_log("CREATE", "project", pid,
+                         f"Added assumption to '{project['name']}'", user)
             st.session_state[f"_clr_assume_{pid}"] = True
             st.success("Added.")
             st.rerun()
@@ -253,6 +261,8 @@ def _attachments_tab(project, user):
             """INSERT INTO project_attachments (project_id, filename, filepath,
                uploaded_at, uploaded_by) VALUES (?,?,?,?,?)""",
             (pid, up.name, dest, db.now_iso(), user))
+        db.audit_log("CREATE", "project", pid,
+                     f"Uploaded attachment '{up.name}' to '{project['name']}'", user)
         st.success(f"Uploaded {up.name}."); st.rerun()
 
     rows = db.query("SELECT * FROM project_attachments WHERE project_id=? ORDER BY id DESC",
@@ -282,6 +292,9 @@ def _attachments_tab(project, user):
             except OSError:
                 pass
             db.execute("DELETE FROM project_attachments WHERE id=?", (r["id"],))
+            db.audit_log("DELETE", "project", pid,
+                         f"Deleted attachment '{r['filename']}' from '{project['name']}'",
+                         user)
             st.rerun()
 
 

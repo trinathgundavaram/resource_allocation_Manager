@@ -295,6 +295,16 @@ CREATE TABLE IF NOT EXISTS app_settings (
     updated_at TEXT
 ) STRICT;
 
+CREATE TABLE IF NOT EXISTS audit_log (
+    id          INTEGER PRIMARY KEY,
+    changed_at  TEXT NOT NULL,
+    changed_by  TEXT,
+    action      TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id   INTEGER,
+    summary     TEXT
+) STRICT;
+
 CREATE INDEX IF NOT EXISTS idx_alloc_rpym ON allocations (resource_id, project_id, year, month);
 CREATE INDEX IF NOT EXISTS idx_alloc_ym ON allocations (year, month);
 CREATE INDEX IF NOT EXISTS idx_rate_resource ON resource_billing_rates (resource_id, effective_from_date);
@@ -328,6 +338,23 @@ def _migrate(conn):
 def get_setting(key, default=None):
     row = query_one("SELECT value FROM app_settings WHERE key = ?", (key,))
     return row["value"] if row else default
+
+
+def audit_log(action, entity_type, entity_id, summary, user, conn=None):
+    """Record a single auditable change.
+
+    ``action`` is a short verb (CREATE / UPDATE / DELETE / STATUS / ASSIGN / …).
+    Pass ``conn`` to record inside an existing transaction; otherwise this opens
+    its own. Captures who, when, what entity, and a human-readable summary.
+    """
+    sql = ("INSERT INTO audit_log (changed_at, changed_by, action, entity_type, "
+           "entity_id, summary) VALUES (?,?,?,?,?,?)")
+    params = (now_iso(), user, action, entity_type,
+              entity_id if entity_id is not None else None, summary)
+    if conn is not None:
+        conn.execute(sql, params)
+    else:
+        execute(sql, params)
 
 
 def set_setting(key, value):
