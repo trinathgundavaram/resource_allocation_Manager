@@ -35,12 +35,11 @@ def render(user):
 _REF_NULL = {
     "managers": [("projects", "project_lead_id"), ("resources", "manager_id")],
     "roles": [("resources", "role_id")],
-    "clients": [("projects", "client_id")],
 }
 
 
 # --------------------------------------------------------------------------- #
-# Simple name-only tables (clients / roles / managers)
+# Simple name-only tables (roles / managers)
 # --------------------------------------------------------------------------- #
 def _simple_table(table, label, user):
     st.subheader(f"{label}s")
@@ -263,11 +262,11 @@ def _projects(user):
             if st.form_submit_button("Create project") and name.strip():
                 try:
                     pid = db.execute(
-                        """INSERT INTO projects (name, code, client_id, is_baseline,
+                        """INSERT INTO projects (name, code, is_baseline,
                            start_month, start_year, end_month, end_year, status,
                            color, priority, project_lead_id, notes, created_at, created_by)
-                           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                        (name.strip(), code.strip() or None, None, 1 if is_base else 0,
+                           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        (name.strip(), code.strip() or None, 1 if is_base else 0,
                          sm, sy, em, ey, "ESTIMATE", color, priority,
                          mmap.get(lead), notes, db.now_iso(), user))
                     if budget:

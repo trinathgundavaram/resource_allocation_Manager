@@ -135,12 +135,6 @@ CREATE TABLE IF NOT EXISTS roles (
     created_at  TEXT NOT NULL
 ) STRICT;
 
-CREATE TABLE IF NOT EXISTS clients (
-    id          INTEGER PRIMARY KEY,
-    name        TEXT NOT NULL UNIQUE,
-    created_at  TEXT NOT NULL
-) STRICT;
-
 CREATE TABLE IF NOT EXISTS managers (
     id          INTEGER PRIMARY KEY,
     name        TEXT NOT NULL UNIQUE,
@@ -172,7 +166,6 @@ CREATE TABLE IF NOT EXISTS projects (
     id              INTEGER PRIMARY KEY,
     name            TEXT NOT NULL,
     code            TEXT,
-    client_id       INTEGER REFERENCES clients(id),
     is_baseline     INTEGER NOT NULL DEFAULT 0 CHECK (is_baseline IN (0,1)),
     start_month     INTEGER NOT NULL CHECK (start_month BETWEEN 1 AND 12),
     start_year      INTEGER NOT NULL CHECK (start_year BETWEEN 2020 AND 2100),
