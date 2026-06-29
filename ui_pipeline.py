@@ -196,13 +196,14 @@ def _details_tab(project, user):
 
     st.divider()
     st.markdown("##### Status change")
-    st.caption(f"Current status: **{project['status']}**")
+    st.caption(f"Current status: **{project['status']}**. A project can be moved "
+               "directly to any status.")
     transitions = logic.allowed_transitions(project["status"])
     if not transitions:
-        st.info("No further transitions available.")
+        st.info("No other statuses available.")
     else:
         new_status = st.selectbox("New status", transitions)
-        reason = st.text_input("Reason (required)", key="status_reason")
+        reason = st.text_input("Reason (optional)", key="status_reason")
         ack = st.checkbox("Confirm this status change")
         if st.button("Apply status change", disabled=not ack):
             try:

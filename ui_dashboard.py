@@ -130,10 +130,14 @@ def render(user):
 
     version = _data_version()
 
-    # ---- New-year banner ----
+    # ---- No-allocations banner ----
     if not logic.has_allocations_for_year(year):
-        st.warning(f"🎆 **{year}** has no allocations recorded yet. "
-                   "Previous-year data is archived and queryable in Export/Reports.")
+        st.warning(
+            f"📭 **{year}** has no allocations recorded yet. Creating a project "
+            "or resource does not allocate anyone — head to the **Monthly Grid** "
+            "and use *Put a resource on a baseline* to onboard each resource to "
+            "100%, then assign delivery work. (Prior-year data, if any, stays "
+            "queryable in Export/Reports.)")
 
     # ---- Action items (closures + end warnings), only relevant to 'today' ----
     _action_items(user)

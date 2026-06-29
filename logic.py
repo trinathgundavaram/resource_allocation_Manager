@@ -69,26 +69,8 @@ STATUS_COLORS = {
 
 
 def allowed_transitions(current):
-    """Return the list of statuses ``current`` may move to."""
-    result = []
-    if current in MAIN_FLOW:
-        idx = MAIN_FLOW.index(current)
-        if idx + 1 < len(MAIN_FLOW):
-            result.append(MAIN_FLOW[idx + 1])
-    if current == "ALLOCATED":
-        result.append("NOT_ALLOCATED")
-    if current == "NOT_ALLOCATED":
-        result.append("ALLOCATED")
-    for t in TERMINAL_ANY:
-        if t != current:
-            result.append(t)
-    # de-dup while keeping order
-    seen, out = set(), []
-    for s in result:
-        if s not in seen:
-            seen.add(s)
-            out.append(s)
-    return out
+    """A project may move directly to any other status (no forced step order)."""
+    return [s for s in ALL_STATUSES if s != current]
 
 
 # --------------------------------------------------------------------------- #
@@ -644,24 +626,23 @@ def set_baseline_allocation(resource_id, baseline_project_id, year, month, user,
 # --------------------------------------------------------------------------- #
 # Project lifecycle
 # --------------------------------------------------------------------------- #
-def change_project_status(project_id, new_status, user, reason):
+def change_project_status(project_id, new_status, user, reason=""):
     project = get_project(project_id)
     if not project:
         raise ValidationError("Project not found.")
     old = project["status"]
     if new_status == old:
         raise ValidationError("Status unchanged.")
-    if new_status not in allowed_transitions(old):
-        raise ValidationError(f"Cannot move from {old} to {new_status}.")
-    if not reason or not reason.strip():
-        raise ValidationError("A reason is required for status changes.")
+    if new_status not in ALL_STATUSES:
+        raise ValidationError(f"Unknown status {new_status}.")
+    # Reason is optional; any status may be set directly.
     with db.transaction() as conn:
         conn.execute("UPDATE projects SET status=? WHERE id=?", (new_status, project_id))
         conn.execute(
             """INSERT INTO project_status_history
                (project_id, old_status, new_status, changed_at, changed_by, reason)
                VALUES (?,?,?,?,?,?)""",
-            (project_id, old, new_status, db.now_iso(), user, reason),
+            (project_id, old, new_status, db.now_iso(), user, (reason or "").strip() or None),
         )
     return True
 
