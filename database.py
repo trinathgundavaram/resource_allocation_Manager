@@ -59,11 +59,13 @@ def transaction():
             conn.execute(...)
     Commits on success, ROLLBACKs on any exception (re-raised).
     """
+    global _WRITE_SEQ
     conn = get_connection()
     try:
         conn.execute("BEGIN IMMEDIATE;")
         yield conn
         conn.execute("COMMIT;")
+        _WRITE_SEQ += 1          # any committed write bumps the data version
     except Exception:
         try:
             conn.execute("ROLLBACK;")
@@ -72,6 +74,16 @@ def transaction():
         raise
     finally:
         conn.close()
+
+
+# Process-wide counter incremented on every committed write (see transaction()).
+# Cached views key off get_write_seq() so ANY change anywhere invalidates them
+# instantly, while still serving cached results when nothing has changed.
+_WRITE_SEQ = 0
+
+
+def get_write_seq():
+    return _WRITE_SEQ
 
 
 # --------------------------------------------------------------------------- #

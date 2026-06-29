@@ -24,16 +24,16 @@ from working_days import month_label, months_between, MONTH_NAMES
 # Cached computation
 # --------------------------------------------------------------------------- #
 def _data_version():
-    """Cheap signature that changes whenever data the dashboard reads changes."""
+    """Signature that changes whenever underlying data changes.
+
+    The process-wide write counter bumps on *every* committed write (resource
+    edits, role/manager changes, status changes, budgets, allocations, …), so
+    any change anywhere invalidates the cached views instantly. The allocation
+    count/timestamp is kept as a belt-and-suspenders fallback (e.g. after a
+    backup restore that swaps the DB file)."""
     a = db.query_one(
         "SELECT COUNT(*) c, COALESCE(MAX(last_modified_at),'') m FROM allocations")
-    r = db.query_one(
-        "SELECT COUNT(*) c, COALESCE(MAX(created_at),'') m FROM resource_billing_rates")
-    h = db.query_one("SELECT COUNT(*) c FROM holidays")
-    p = db.query_one("SELECT COUNT(*) c FROM projects")
-    s = db.query_one("SELECT COUNT(*) c FROM project_status_history")
-    b = db.query_one("SELECT COUNT(*) c FROM project_budgets")
-    return f"{a['c']}-{a['m']}|{r['c']}-{r['m']}|{h['c']}|{p['c']}|{s['c']}|{b['c']}"
+    return f"seq{db.get_write_seq()}|{a['c']}-{a['m']}"
 
 
 @st.cache_data(show_spinner="Crunching allocations…")

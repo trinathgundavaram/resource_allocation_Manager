@@ -51,6 +51,7 @@ def render(user):
         if st.button("♻️ Restore selected backup", disabled=not confirm):
             try:
                 db.restore_backup(labels[sel])
+                st.cache_data.clear()    # restored DB → drop any cached views
                 st.session_state.clear()
                 st.success("Restored. Reloading…")
                 st.rerun()
