@@ -142,12 +142,16 @@ def _onboard_baseline(user, resources, baselines, sel_year, month, green, total)
         label = (f"Put on baseline at 100% · "
                  f"{MONTH_NAMES[from_m][:3]}–{MONTH_NAMES[to_m][:3]} {sel_year}")
         if st.button(label, key="ob_go"):
+            import time
             try:
                 for m in range(from_m, to_m + 1):
                     logic.set_baseline_allocation(rmap[rsel], bmap[bsel], sel_year,
                                                   m, user, "onboarding to baseline")
-                st.success(f"{rsel} placed on baseline for "
+                st.cache_data.clear()   # so the Dashboard reflects it immediately
+                st.success(f"✅ {rsel} placed on baseline for "
                            f"{MONTH_NAMES[from_m]}–{MONTH_NAMES[to_m]} {sel_year}.")
+                st.toast("✅ Resource placed on baseline", icon="✅")
+                time.sleep(1.3)         # keep the confirmation visible
                 st.rerun()
             except logic.ValidationError as e:
                 st.error(str(e))

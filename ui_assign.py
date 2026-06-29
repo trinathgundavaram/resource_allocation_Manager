@@ -238,6 +238,7 @@ def assignment_panel(user, resource_id=None, project_id=None,
             # Reset captured baseline + synced widgets so next open re-reads fresh.
             for kk in (atopen_key, pair_key, f"{key}_pct_s", f"{key}_pct_n"):
                 st.session_state.pop(kk, None)
+            st.cache_data.clear()   # so the Dashboard reflects the change immediately
             verb = "updated" if is_edit else "saved"
             st.success(f"✅ Allocation {verb} successfully.")
             st.toast(f"✅ Allocation {verb}", icon="✅")
