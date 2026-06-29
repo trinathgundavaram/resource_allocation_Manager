@@ -202,136 +202,150 @@ def render(user):
             "assign delivery work.")
 
     _action_items(user)
+    st.divider()
 
-    # ---- KPI roll-up ----
     util = _utilization(year, month, version)
-    n = len(util)
-    fully = sum(1 for u in util if u["status"] == "Fully allocated")
-    partial = sum(1 for u in util if u["status"] == "Partially allocated")
-    none_alloc = sum(1 for u in util if u["status"] == "No allocation")
-    avg_load = round(sum(u["delivery_pct"] for u in util) / n, 1) if n else 0.0
-    month_burn = sum(u["delivery_cost"] for u in util)
-    usable_projects = len(logic.get_projects(usable_only=True))
-
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Active resources", n)
-    k2.metric("Avg delivery load", f"{avg_load:.0f}%",
-              help="Average % of capacity on delivery (non-baseline) work. "
-                   "The rest of each resource's 100% sits on a baseline.")
-    k3.metric("READY projects", usable_projects)
-    k4.metric(f"Delivery burn ({MONTH_ABBR[month]})", f"{month_burn:,.0f}")
-
-    # ---- Allocation status breakdown (based on TOTAL allocation) ----
-    st.markdown("##### Allocation status")
-    st.caption("Based on **total** allocation. A resource at 100% - whether on "
-               "delivery or a baseline - is *Fully allocated*. *No allocation* "
-               "means the resource isn't onboarded for this month yet.")
-    s1, s2, s3 = st.columns(3)
-    s1.metric("Fully allocated", fully, help="Totals 100% (delivery + baseline).")
-    s2.metric("Partially allocated", partial, help="Totals between 1-99%.")
-    s3.metric("No allocation", none_alloc,
-              help="No allocation rows yet - not onboarded for this month.")
-    status_order = ["Fully allocated", "Partially allocated", "No allocation"]
-    status_df = pd.DataFrame({"Status": status_order,
-                              "Resources": [fully, partial, none_alloc]})
-    status_chart = (
-        alt.Chart(status_df).mark_bar().encode(
-            x=alt.X("Resources:Q", title="# resources",
-                    axis=alt.Axis(tickMinStep=1)),
-            y=alt.Y("Status:N", sort=status_order, title=None),
-            color=alt.Color("Status:N", sort=status_order, legend=None,
-                            scale=alt.Scale(range=["#2E7D32", "#F9A825", "#9E9E9E"])),
-            tooltip=["Status", "Resources"])
-        .properties(height=140))
-    st.altair_chart(status_chart, use_container_width=True)
-
-    # ---- Baseline share of allocation (month / YTD / full year) ----
     split = _capacity_split(year, version)
-    bs_month = _baseline_share(split[month - 1:month])
-    bs_ytd = _baseline_share(split[:month])
-    bs_fy = _baseline_share(split)
-    baselines = logic.get_baseline_projects(usable_only=False)
-    if len(baselines) == 1:
-        bl_note = f"Baseline: **{logic.project_label(baselines[0])}**."
-    elif len(baselines) > 1:
-        bl_note = ("**Combined across " + str(len(baselines)) + " baselines**: "
-                   + ", ".join(logic.project_label(b) for b in baselines)
-                   + ". (Use the project picker below for a single baseline.)")
-    else:
-        bl_note = "No baseline projects defined."
-    st.markdown("##### Baseline share of allocation")
-    st.caption("Of all allocated capacity (hours), how much sits on baseline "
-               "(non-delivery) work - combined across every baseline project. "
-               + bl_note)
-    b1, b2, b3 = st.columns(3)
-    b1.metric(f"This month ({MONTH_ABBR[month]})", f"{bs_month:.0f}%")
-    b2.metric(f"YTD (Jan-{MONTH_ABBR[month]})", f"{bs_ytd:.0f}%")
-    b3.metric(f"Full year ({year})", f"{bs_fy:.0f}%")
 
-    # ---- Per-project allocation share + burn (picker) ----
-    _project_allocation_section(year, month, version, split)
+    # ===== Section: Team summary =====
+    with st.container(border=True):
+        st.subheader("Team summary")
+        n = len(util)
+        fully = sum(1 for u in util if u["status"] == "Fully allocated")
+        partial = sum(1 for u in util if u["status"] == "Partially allocated")
+        none_alloc = sum(1 for u in util if u["status"] == "No allocation")
+        avg_load = round(sum(u["delivery_pct"] for u in util) / n, 1) if n else 0.0
+        month_burn = sum(u["delivery_cost"] for u in util)
+        usable_projects = len(logic.get_projects(usable_only=True))
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Active resources", n)
+        k2.metric("Avg delivery load", f"{avg_load:.0f}%",
+                  help="Average % of capacity on delivery (non-baseline) work. "
+                       "The rest of each resource's 100% sits on a baseline.")
+        k3.metric("READY projects", usable_projects)
+        k4.metric(f"Delivery burn ({MONTH_ABBR[month]})", f"{month_burn:,.0f}")
 
-    # ---- Financials: YTD / projection / budget remaining ----
-    monthly = _monthly_burn(year, version)
-    ytd = sum(monthly[:month])
-    fy = sum(monthly)
-    rest = fy - ytd
-    total_budget = _total_budget(year)
-    remaining_budget = total_budget - fy
+    st.write("")
 
-    st.markdown("##### Financials (planned burn)")
-    f1, f2, f3, f4, f5 = st.columns(5)
-    f1.metric(f"YTD burn (Jan-{MONTH_ABBR[month]})", f"{ytd:,.0f}")
-    f2.metric("Rest-of-year projection", f"{rest:,.0f}")
-    f3.metric("Full-year projection", f"{fy:,.0f}")
-    f4.metric("Total budget", f"{total_budget:,.0f}")
-    f5.metric("Budget remaining (FY)", f"{remaining_budget:,.0f}",
-              delta=f"{remaining_budget:,.0f}", delta_color="normal",
-              help="Total budget minus full-year projected burn. Negative = "
-                   "projected to go over budget.")
-    if remaining_budget < 0:
-        st.error(f"Projected **over budget** by {abs(remaining_budget):,.0f} "
-                 f"for {year} (full-year burn {fy:,.0f} vs budget {total_budget:,.0f}).")
-    st.caption("Projection = planned burn from current allocations. "
-               "YTD = Jan->selected month; rest-of-year = remaining months; "
-               "full-year = all 12 months.")
+    # ===== Section: Allocation status =====
+    with st.container(border=True):
+        st.subheader("Allocation status")
+        st.caption("Based on **total** allocation. A resource at 100% - whether "
+                   "on delivery or a baseline - is *Fully allocated*. "
+                   "*No allocation* means not onboarded for this month yet.")
+        s1, s2, s3 = st.columns(3)
+        s1.metric("Fully allocated", fully, help="Totals 100% (delivery + baseline).")
+        s2.metric("Partially allocated", partial, help="Totals between 1-99%.")
+        s3.metric("No allocation", none_alloc,
+                  help="No allocation rows yet - not onboarded for this month.")
+        status_order = ["Fully allocated", "Partially allocated", "No allocation"]
+        status_df = pd.DataFrame({"Status": status_order,
+                                  "Resources": [fully, partial, none_alloc]})
+        status_chart = (
+            alt.Chart(status_df).mark_bar().encode(
+                x=alt.X("Resources:Q", title="# resources",
+                        axis=alt.Axis(tickMinStep=1)),
+                y=alt.Y("Status:N", sort=status_order, title=None),
+                color=alt.Color("Status:N", sort=status_order, legend=None,
+                                scale=alt.Scale(range=["#2E7D32", "#F9A825", "#9E9E9E"])),
+                tooltip=["Status", "Resources"])
+            .properties(height=140))
+        st.altair_chart(status_chart, use_container_width=True)
 
-    # ---- Monthly burn trend (chronological order enforced via Altair sort) ----
-    with st.expander("Monthly burn trend (Jan-Dec)", expanded=True):
-        order = [MONTH_ABBR[m] for m in range(1, 13)]
-        burn_df = pd.DataFrame({
-            "Month": order,
-            "Planned burn": [round(x, 2) for x in monthly],
-            "Cumulative": [round(x, 2) for x in pd.Series(monthly).cumsum()],
-        })
-        bar = (alt.Chart(burn_df).mark_bar(color="#4C78A8").encode(
-                   x=alt.X("Month:N", sort=order, title="Month"),
-                   y=alt.Y("Planned burn:Q", title="Planned burn"),
-                   tooltip=["Month", "Planned burn"])
-               .properties(height=240))
-        st.altair_chart(bar, use_container_width=True)
-        line = (alt.Chart(burn_df).mark_line(point=True, color="#E45756").encode(
-                    x=alt.X("Month:N", sort=order, title="Month"),
-                    y=alt.Y("Cumulative:Q", title="Cumulative burn"),
-                    tooltip=["Month", "Cumulative"])
-                .properties(height=200))
-        st.altair_chart(line, use_container_width=True)
+    st.write("")
 
-    st.divider()
+    # ===== Section: Baseline share of allocation =====
+    with st.container(border=True):
+        bs_month = _baseline_share(split[month - 1:month])
+        bs_ytd = _baseline_share(split[:month])
+        bs_fy = _baseline_share(split)
+        baselines = logic.get_baseline_projects(usable_only=False)
+        if len(baselines) == 1:
+            bl_note = f"Baseline: **{logic.project_label(baselines[0])}**."
+        elif len(baselines) > 1:
+            bl_note = ("**Combined across " + str(len(baselines)) + " baselines**: "
+                       + ", ".join(logic.project_label(b) for b in baselines)
+                       + ". (Use the project picker below for a single baseline.)")
+        else:
+            bl_note = "No baseline projects defined."
+        st.subheader("Baseline share of allocation")
+        st.caption("Of all allocated capacity (hours), how much sits on baseline "
+                   "(non-delivery) work - combined across every baseline project. "
+                   + bl_note)
+        b1, b2, b3 = st.columns(3)
+        b1.metric(f"This month ({MONTH_ABBR[month]})", f"{bs_month:.0f}%")
+        b2.metric(f"YTD (Jan-{MONTH_ABBR[month]})", f"{bs_ytd:.0f}%")
+        b3.metric(f"Full year ({year})", f"{bs_fy:.0f}%")
 
-    # ---- Project health (now FIRST) ----
-    _project_health_section(year, month, version)
+    st.write("")
 
-    st.divider()
+    # ===== Section: Project allocation & burn (picker) =====
+    with st.container(border=True):
+        _project_allocation_section(year, month, version, split)
 
-    # ---- Resource utilization ----
-    _utilization_section(util)
+    st.write("")
+
+    # ===== Section: Financials =====
+    with st.container(border=True):
+        monthly = _monthly_burn(year, version)
+        ytd = sum(monthly[:month])
+        fy = sum(monthly)
+        rest = fy - ytd
+        total_budget = _total_budget(year)
+        remaining_budget = total_budget - fy
+        st.subheader("Financials (planned burn)")
+        f1, f2, f3, f4, f5 = st.columns(5)
+        f1.metric(f"YTD burn (Jan-{MONTH_ABBR[month]})", f"{ytd:,.0f}")
+        f2.metric("Rest-of-year projection", f"{rest:,.0f}")
+        f3.metric("Full-year projection", f"{fy:,.0f}")
+        f4.metric("Total budget", f"{total_budget:,.0f}")
+        f5.metric("Budget remaining (FY)", f"{remaining_budget:,.0f}",
+                  delta=f"{remaining_budget:,.0f}", delta_color="normal",
+                  help="Total budget minus full-year projected burn. Negative = "
+                       "projected to go over budget.")
+        if remaining_budget < 0:
+            st.error(f"Projected **over budget** by {abs(remaining_budget):,.0f} "
+                     f"for {year} (full-year burn {fy:,.0f} vs budget {total_budget:,.0f}).")
+        st.caption("Projection = planned burn from current allocations. "
+                   "YTD = Jan->selected month; rest-of-year = remaining months; "
+                   "full-year = all 12 months.")
+        with st.expander("Monthly burn trend (Jan-Dec)", expanded=False):
+            order = [MONTH_ABBR[m] for m in range(1, 13)]
+            burn_df = pd.DataFrame({
+                "Month": order,
+                "Planned burn": [round(x, 2) for x in monthly],
+                "Cumulative": [round(x, 2) for x in pd.Series(monthly).cumsum()],
+            })
+            bar = (alt.Chart(burn_df).mark_bar(color="#4C78A8").encode(
+                       x=alt.X("Month:N", sort=order, title="Month"),
+                       y=alt.Y("Planned burn:Q", title="Planned burn"),
+                       tooltip=["Month", "Planned burn"])
+                   .properties(height=240))
+            st.altair_chart(bar, use_container_width=True)
+            line = (alt.Chart(burn_df).mark_line(point=True, color="#E45756").encode(
+                        x=alt.X("Month:N", sort=order, title="Month"),
+                        y=alt.Y("Cumulative:Q", title="Cumulative burn"),
+                        tooltip=["Month", "Cumulative"])
+                    .properties(height=200))
+            st.altair_chart(line, use_container_width=True)
+
+    st.write("")
+
+    # ===== Section: Project health =====
+    with st.container(border=True):
+        _project_health_section(year, month, version)
+
+    st.write("")
+
+    # ===== Section: Resource utilization =====
+    with st.container(border=True):
+        _utilization_section(util)
 
 
 def _project_allocation_section(year, month, version, split):
     """Project picker showing the same allocation-share metrics for any chosen
     project, plus that project's monthly + cumulative burn charts."""
-    st.markdown("##### Project allocation & burn")
+    st.subheader("Project allocation & burn")
     projects = logic.get_projects()
     if not projects:
         st.info("No projects yet.")
