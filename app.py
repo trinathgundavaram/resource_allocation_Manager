@@ -6,19 +6,12 @@ Entry point for the Resource Allocation Management application.
 Run with:  streamlit run app.py
 """
 
-import os
 import datetime as _dt
 
 import streamlit as st
 
 import database as db
 import logic
-import seed as seed_module
-
-# Sample/demo data is OPT-IN. By default the app starts with an EMPTY database
-# (tables are still created automatically). To load the demo dataset, set
-# RA_SEED_SAMPLE_DATA=1 (or true/yes), or run `python reset.py --sample`.
-SEED_SAMPLE = os.getenv("RA_SEED_SAMPLE_DATA", "0").lower() in ("1", "true", "yes")
 
 # UI modules
 import ui_dashboard
@@ -47,12 +40,6 @@ def startup():
     if st.session_state.get("_booted"):
         return
     db.init_db()                       # creates all tables if missing
-    if SEED_SAMPLE:
-        try:
-            seed_module.seed()         # loads sample data only when DB is empty
-        except Exception as e:
-            # Never let seeding crash the app (e.g. a partially-populated DB).
-            st.warning(f"Sample data not loaded: {e}")
     db.auto_backup_on_startup()        # timestamped copy + prune to 30
     logic.maybe_annual_reset()         # archive previous year if new year
     st.session_state["_booted"] = True

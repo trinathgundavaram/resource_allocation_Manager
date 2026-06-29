@@ -11,14 +11,9 @@ streamlit run app.py
 ```
 
 On first launch the database is created with **empty** tables — you enter your
-own data via the Setup screens. A timestamped backup is taken on every start.
-
-To explore with the demo dataset instead (8 resources, 8 projects across the
-lifecycle, holidays, rates, budgets and a full year of allocations), opt in:
-
-```bash
-RA_SEED_SAMPLE_DATA=1 streamlit run app.py   # or:  python reset.py --sample
-```
+own data via the Setup screens (Roles → Managers → Resources → Projects →
+Holidays), then promote projects to `READY_TO_USE` and start allocating. A
+timestamped backup is taken on every start. No sample/demo data is included.
 
 See `DEPLOY.md` for starting fresh and AWS deployment.
 
@@ -26,11 +21,10 @@ See `DEPLOY.md` for starting fresh and AWS deployment.
 
 | File | Purpose |
 |------|---------|
-| `app.py` | Entry point, sidebar navigation, startup (seed/backup/annual-reset). |
+| `app.py` | Entry point, sidebar navigation, startup (backup/annual-reset). |
 | `database.py` | SQLite schema (WAL, STRICT, CHECK constraints), connections, backups. |
 | `working_days.py` | Working-day / working-hour calendar maths. |
 | `logic.py` | All business rules: 100% allocation, baseline maths, concurrency, lifecycle, financials, annual reset. |
-| `seed.py` | Sample-data generator (idempotent). |
 | `ui_setup.py` | Resources, Projects, Clients, Roles, Managers, Holidays. |
 | `ui_pipeline.py` | Kanban (static) + Project Detail (tabs: Details/Assumptions/Attachments/Status History/Allocations). |
 | `ui_grid.py` | Monthly allocation grid (green=100%, red≠100%). |

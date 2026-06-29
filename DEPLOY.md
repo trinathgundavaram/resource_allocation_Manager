@@ -21,23 +21,16 @@ With no `allocations.db` yet this creates all tables **empty**. You then enter
 your real data through the **Setup** screens (Roles → Managers → Resources →
 Projects → Holidays), promote projects to `READY_TO_USE`, and start allocating.
 
-**Loading the demo dataset (optional).** Sample data is opt-in:
-
-```bash
-RA_SEED_SAMPLE_DATA=1 streamlit run app.py   # load demo data if the DB is empty
-# or, explicitly:
-python reset.py --sample                      # wipe + load the demo dataset
-```
-
 **The reset helper:**
 
 ```bash
-python reset.py --empty     # wipe + create empty tables now (no demo data)
-python reset.py --sample    # wipe + load the demo dataset
+python reset.py --empty     # wipe + create empty tables now
 python reset.py             # just wipe; next start creates empty tables
 ```
 
 `reset.py` always backs up the current database to `backups/` before wiping.
+The application ships with **no sample/demo data** — every record is one you
+enter yourself.
 
 ---
 
@@ -74,7 +67,7 @@ pip3 install -r requirements.txt
 Quick smoke test (Ctrl-C to stop):
 
 ```bash
-RA_SEED_SAMPLE_DATA=0 python3 -m streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+python3 -m streamlit run app.py --server.port 8501 --server.address 0.0.0.0
 ```
 
 Visit `http://<EC2-public-IP>:8501`.
@@ -90,7 +83,6 @@ After=network.target
 [Service]
 User=ec2-user
 WorkingDirectory=/home/ec2-user/resource_allocator
-Environment=RA_SEED_SAMPLE_DATA=0
 ExecStart=/usr/bin/python3 -m streamlit run app.py \
   --server.port 8501 --server.address 0.0.0.0 \
   --server.headless true --browser.gatherUsageStats false

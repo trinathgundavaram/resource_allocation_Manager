@@ -175,11 +175,11 @@ def assignment_panel(user, resource_id=None, project_id=None,
             month_pct[(y, m)] = logic.snap5(val)
 
     # ---- Baseline choice (which baseline to reduce) ----
-    sample_baselines = logic.baseline_rows(sel_rid, window[0][0], window[0][1])
+    month_baselines = logic.baseline_rows(sel_rid, window[0][0], window[0][1])
     baseline_choice = {}
-    if len(sample_baselines) > 1:
+    if len(month_baselines) > 1:
         opts = {"Split proportionally": "__split__"}
-        for b in sample_baselines:
+        for b in month_baselines:
             opts[b["project_name"]] = b["project_id"]
         chosen = st.selectbox("Reduce from which baseline?", list(opts.keys()),
                               key=f"{key}_bchoice")

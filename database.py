@@ -8,7 +8,6 @@ Responsibilities:
   * Create the full schema (STRICT tables + CHECK constraints).
   * Provide small query / execute helpers used across the UI modules.
   * Handle automatic + manual backups and restores.
-  * Seed sample data so the app is usable immediately.
 
 All percentage / lifecycle business rules live in logic.py — this file
 only owns persistence and structural constraints.

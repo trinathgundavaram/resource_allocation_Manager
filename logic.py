@@ -616,9 +616,9 @@ def remove_assignment(resource_id, project_id, months, baseline_target, user,
 def set_baseline_allocation(resource_id, baseline_project_id, year, month, user,
                             reason="baseline setup"):
     """Ensure a resource sits on a baseline for a month at 100% if the month is
-    otherwise empty. Used for seeding and for putting a fresh resource onto a
-    baseline. If the month already has allocations, this only makes the chosen
-    project the baseline carrier of the remainder.
+    otherwise empty — i.e. put a fresh resource onto a baseline. If the month
+    already has allocations, this only makes the chosen project the baseline
+    carrier of the remainder.
     """
     with db.transaction() as conn:
         rows = get_month_allocations(resource_id, year, month, conn)
