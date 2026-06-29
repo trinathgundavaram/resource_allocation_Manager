@@ -14,7 +14,7 @@ from working_days import month_label, months_between, MONTH_NAMES
 
 
 def render(user):
-    st.title("🎯 Project View")
+    st.title("Project View")
     usable = logic.get_projects(usable_only=True)
     if not usable:
         st.info("No READY_TO_USE projects. Promote projects in the Pipeline.")
@@ -32,9 +32,9 @@ def render_project(pid, user):
     window = months_between(project["start_year"], project["start_month"],
                             project["end_year"], project["end_month"])
     st.markdown(f"**Window:** {month_label(project['start_year'], project['start_month'])} "
-                f"– {month_label(project['end_year'], project['end_month'])} · "
+                f"- {month_label(project['end_year'], project['end_month'])} - "
                 f"**Status:** {project['status']}"
-                + ("  ·  ⭐ baseline" if project["is_baseline"] else ""))
+                + ("  -  * baseline" if project["is_baseline"] else ""))
 
     view = st.radio("View", ["Timeline", "Single month"], horizontal=True,
                     key=f"pv_view_{pid}")
@@ -51,10 +51,10 @@ def render_project(pid, user):
         _single_month(project, window, user)
 
     st.divider()
-    st.subheader("👥 Resources on this project")
+    st.subheader("Resources on this project")
     st.caption(
         "**% of resource** = how much of that person's own capacity goes to this "
-        "project (across the team this can total well over 100% — that's the "
+        "project (across the team this can total well over 100% - that's the "
         "project's total effort, i.e. number of FTEs). "
         "**% of project** in the header = each person's share of the project's "
         "total staffing over the whole window, so these **sum to 100%** across "
@@ -82,13 +82,13 @@ def render_project(pid, user):
         res_pcts = [logic.get_allocation_value(rid, pid, y, m) for (y, m) in months_on]
         avg_res = sum(res_pcts) / len(res_pcts)
         # Overall share of the project = this resource's total person-% over the
-        # window ÷ the project's total person-% over the window. Summed across
+        # window / the project's total person-% over the window. Summed across
         # all resources this is exactly 100%.
         res_grand = sum(res_pcts)
         overall_share = (res_grand / project_grand_total * 100.0) \
             if project_grand_total > 0 else 0.0
-        header = (f"{res['name']} — {len(months_on)} mo · "
-                  f"~{avg_res:.0f}% of resource (avg) · "
+        header = (f"{res['name']} - {len(months_on)} mo - "
+                  f"~{avg_res:.0f}% of resource (avg) - "
                   f"{overall_share:.0f}% of project")
         with st.expander(header):
             rows = []
@@ -119,7 +119,7 @@ def render_project(pid, user):
                 "Scope", ["All months"] + [month_label(y, m) for (y, m) in months_on],
                 key=f"pv_rm_scope_{pid}_{rid}")
             tgt = "__split__"
-            if st.button("🗑 Remove", key=f"pv_rm_btn_{pid}_{rid}"):
+            if st.button("Remove", key=f"pv_rm_btn_{pid}_{rid}"):
                 try:
                     if scope == "All months":
                         logic.remove_assignment(rid, pid, months_on, tgt, user,
@@ -134,7 +134,7 @@ def render_project(pid, user):
                     st.error(str(e))
 
     st.divider()
-    st.subheader("➕ Add a resource")
+    st.subheader("Add a resource")
     if project["is_baseline"]:
         st.info("Baseline project allocations are auto-calculated.")
     else:

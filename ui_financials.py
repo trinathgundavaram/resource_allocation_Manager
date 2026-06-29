@@ -16,7 +16,7 @@ from working_days import month_label, last_day_of_month, months_between
 
 
 def render(user):
-    st.title("💰 Financials")
+    st.title("Financials")
     tabs = st.tabs(["Per project", "Baseline cost", "Cross-project summary"])
     with tabs[0]:
         _per_project()
@@ -63,7 +63,7 @@ def _per_project():
             "cumulative": round(cum, 2),
             "budget(as-of)": round(logic.budget_for_month(pid, r["year"], r["month"]), 2),
             "remaining": round(budget_total - cum, 2),
-            "status": "⚠ UNSTAFFED" if r["unstaffed"] else "",
+            "status": "UNSTAFFED" if r["unstaffed"] else "",
             "gap": round(r["gap"], 2) if r["unstaffed"] else 0.0,
         })
     df = pd.DataFrame(table)
@@ -79,7 +79,7 @@ def _per_project():
 
     unstaffed = [r for r in rows if r["unstaffed"]]
     if unstaffed:
-        st.warning(f"⚠ {len(unstaffed)} unstaffed month(s): "
+        st.warning(f"{len(unstaffed)} unstaffed month(s): "
                    + ", ".join(r["label"] for r in unstaffed))
 
     st.markdown("##### Budget amendment history")

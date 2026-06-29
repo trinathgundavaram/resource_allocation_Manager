@@ -76,14 +76,14 @@ def working_hours(month, year, hours_per_day, days_per_week, holidays=None):
 def month_weeks(year, month, holidays=None):
     """Split a month into calendar weeks that never cross the month boundary.
 
-    A "week" is a maximal run of days that fall in the same Mon–Sun calendar
+    A "week" is a maximal run of days that fall in the same Mon-Sun calendar
     week *and* the same month. So the first stretch of the month (even if it
     starts mid-week) is Week 1, and the final stretch (even if it ends mid-week)
     is its own last week. The next month restarts at Week 1.
 
     Returns a list of dicts:
         {"n", "label", "start" (date), "end" (date), "working_days" (int)}
-    where working_days counts Mon–Fri days that are not holidays.
+    where working_days counts Mon-Fri days that are not holidays.
     """
     holiday_set = set(holidays or [])
     last = calendar.monthrange(year, month)[1]
@@ -91,7 +91,7 @@ def month_weeks(year, month, holidays=None):
     start = 1
     n = 0
     while start <= last:
-        wd = _dt.date(year, month, start).weekday()  # Mon=0 … Sun=6
+        wd = _dt.date(year, month, start).weekday()  # Mon=0 ... Sun=6
         end = min(last, start + (6 - wd))            # through the coming Sunday
         cnt = 0
         for day in range(start, end + 1):

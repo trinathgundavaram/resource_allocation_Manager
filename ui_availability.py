@@ -17,7 +17,7 @@ from working_days import MONTH_NAMES
 
 
 def render(user):
-    st.title("🔍 Availability")
+    st.title("Availability")
     today = _dt.date.today()
     c1, c2, c3 = st.columns(3)
     month = c1.selectbox("Month", list(range(1, 13)), index=today.month - 1,
@@ -33,7 +33,7 @@ def render(user):
 
     table = []
     for r in rows:
-        projs = ", ".join(f"{n} ({p:.0f}%)" for n, p in r["projects"]) or "—"
+        projs = ", ".join(f"{n} ({p:.0f}%)" for n, p in r["projects"]) or "-"
         table.append({
             "resource": r["name"], "role": r["role"], "manager": r["manager"],
             "rate": r["rate"], "available %": round(r["available_pct"], 1),
@@ -48,7 +48,7 @@ def render(user):
     st.divider()
     st.subheader("Assign a resource")
     st.caption("Pick a resource from the list above to open the assignment panel.")
-    rmap = {f"{r['name']} — {r['available_pct']:.0f}% free": r["resource_id"]
+    rmap = {f"{r['name']} - {r['available_pct']:.0f}% free": r["resource_id"]
             for r in rows}
     sel = st.selectbox("Resource", list(rmap.keys()))
     with st.container(border=True):

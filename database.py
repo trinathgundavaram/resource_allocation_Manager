@@ -9,7 +9,7 @@ Responsibilities:
   * Provide small query / execute helpers used across the UI modules.
   * Handle automatic + manual backups and restores.
 
-All percentage / lifecycle business rules live in logic.py — this file
+All percentage / lifecycle business rules live in logic.py - this file
 only owns persistence and structural constraints.
 """
 
@@ -347,7 +347,7 @@ def get_setting(key, default=None):
 def audit_log(action, entity_type, entity_id, summary, user, conn=None):
     """Record a single auditable change.
 
-    ``action`` is a short verb (CREATE / UPDATE / DELETE / STATUS / ASSIGN / …).
+    ``action`` is a short verb (CREATE / UPDATE / DELETE / STATUS / ASSIGN / ...).
     Pass ``conn`` to record inside an existing transaction; otherwise this opens
     its own. Captures who, when, what entity, and a human-readable summary.
     """

@@ -5,11 +5,11 @@ Landing dashboard.
 
 Allocation model note: a resource is always at 100% (baseline absorbs the
 remainder), so "allocation" here means *delivery* (non-baseline) work. Time
-sitting on a baseline is NOT counted as free capacity — a resource fully on a
+sitting on a baseline is NOT counted as free capacity - a resource fully on a
 baseline simply has *no delivery allocation*. Resources are bucketed as:
-  * Fully allocated   — 100% on delivery projects (0% baseline)
-  * Partially allocated — some delivery, some baseline
-  * No allocation     — entirely on baseline (no delivery work)
+  * Fully allocated   - 100% on delivery projects (0% baseline)
+  * Partially allocated - some delivery, some baseline
+  * No allocation     - entirely on baseline (no delivery work)
 
 Heavy per-resource/project maths is cached and keyed to a write-counter data
 version, so any change anywhere refreshes it instantly.
@@ -43,7 +43,7 @@ def _alloc_status(total_pct):
     return "No allocation"
 
 
-@st.cache_data(show_spinner="Crunching allocations…")
+@st.cache_data(show_spinner="Crunching allocations...")
 def _utilization(year, month, _version):
     """Per-resource delivery load for the month."""
     out = []
@@ -66,14 +66,14 @@ def _utilization(year, month, _version):
             "delivery_cost": round(del_hours * rate, 2),
             "rate": rate,
             "projects": ", ".join(x["project_name"] for x in rows
-                                  if not x["is_baseline"] and x["percentage"] > 0) or "—",
+                                  if not x["is_baseline"] and x["percentage"] > 0) or "-",
         })
     return out
 
 
 @st.cache_data(show_spinner=False)
 def _monthly_burn(year, _version):
-    """Total planned burn per month (Jan→Dec) across all projects."""
+    """Total planned burn per month (Jan->Dec) across all projects."""
     projects = logic.get_projects()
     return [round(sum(logic.project_month_cost(p["id"], year, m) for p in projects), 2)
             for m in range(1, 13)]
@@ -82,7 +82,7 @@ def _monthly_burn(year, _version):
 @st.cache_data(show_spinner=False)
 def _project_monthly(year, project_id, _version):
     """Per-month allocated capacity-hours and planned burn (cost) for one
-    project across all resources (Jan→Dec)."""
+    project across all resources (Jan->Dec)."""
     out = []
     for m in range(1, 13):
         rows = db.query(
@@ -102,7 +102,7 @@ def _project_monthly(year, project_id, _version):
 @st.cache_data(show_spinner=False)
 def _capacity_split(year, _version):
     """Per-month split of the team's allocated capacity-hours into baseline vs
-    delivery (Jan→Dec). Used for the 'how much of allocation is baseline'
+    delivery (Jan->Dec). Used for the 'how much of allocation is baseline'
     indicator at month / YTD / full-year scope."""
     out = []
     resources = logic.get_resources(active_only=True)
@@ -137,7 +137,7 @@ def _total_budget(year):
 @st.cache_data(show_spinner=False)
 def _project_health(year, month, _version):
     """Project health scoped to the selected YEAR: planned spend, remaining and
-    % of budget are all for Jan–Dec of ``year`` (clipped to the project's
+    % of budget are all for Jan-Dec of ``year`` (clipped to the project's
     window). Budget is the amendment effective as of that year-end."""
     out = []
     for p in logic.get_projects():
@@ -151,7 +151,7 @@ def _project_health(year, month, _version):
             if (year, month) in wset else 0.0
         out.append({
             "project": logic.project_label(p),
-            "status": p["status"], "baseline": "⭐" if p["is_baseline"] else "",
+            "status": p["status"], "baseline": "*" if p["is_baseline"] else "",
             "budget": round(budget, 0), "budget_basis": "annual" if is_annual else "overall",
             "fy_spend": round(fy_spend, 0),
             "fy_remaining": round(budget - fy_spend, 0),
@@ -168,7 +168,7 @@ def render(user):
     today = _dt.date.today()
 
     h1, h2, h3, h4 = st.columns([3, 1.4, 1.4, 1])
-    h1.title("🏠 Dashboard")
+    h1.title("Dashboard")
     st.session_state.setdefault("dash_month", today.month)
     st.session_state.setdefault("dash_year", today.year)
     month = h2.selectbox("Month", list(range(1, 13)),
@@ -180,7 +180,7 @@ def render(user):
                         if st.session_state["dash_year"] in years else years.index(today.year),
                         key="dash_year")
     h4.write("")
-    if h4.button("🔄 Refresh"):
+    if h4.button("Refresh"):
         _utilization.clear()
         _project_health.clear()
         _monthly_burn.clear()
@@ -190,14 +190,14 @@ def render(user):
 
     is_current = (year == today.year and month == today.month)
     st.caption(f"Showing **{MONTH_NAMES[month]} {year}**"
-               + ("  ·  current month" if is_current else "  ·  historical/forecast view"))
+               + ("  -  current month" if is_current else "  -  historical/forecast view"))
 
     version = _data_version()
 
     if not logic.has_allocations_for_year(year):
         st.warning(
-            f"📭 **{year}** has no allocations recorded yet. Creating a project "
-            "or resource does not allocate anyone — head to the **Monthly Grid** "
+            f"**{year}** has no allocations recorded yet. Creating a project "
+            "or resource does not allocate anyone - head to the **Monthly Grid** "
             "and use *Put a resource on a baseline* to onboard each resource, then "
             "assign delivery work.")
 
@@ -223,14 +223,14 @@ def render(user):
 
     # ---- Allocation status breakdown (based on TOTAL allocation) ----
     st.markdown("##### Allocation status")
-    st.caption("Based on **total** allocation. A resource at 100% — whether on "
-               "delivery or a baseline — is *Fully allocated*. *No allocation* "
+    st.caption("Based on **total** allocation. A resource at 100% - whether on "
+               "delivery or a baseline - is *Fully allocated*. *No allocation* "
                "means the resource isn't onboarded for this month yet.")
     s1, s2, s3 = st.columns(3)
-    s1.metric("✅ Fully allocated", fully, help="Totals 100% (delivery + baseline).")
-    s2.metric("🟡 Partially allocated", partial, help="Totals between 1–99%.")
-    s3.metric("⚪ No allocation", none_alloc,
-              help="No allocation rows yet — not onboarded for this month.")
+    s1.metric("Fully allocated", fully, help="Totals 100% (delivery + baseline).")
+    s2.metric("Partially allocated", partial, help="Totals between 1-99%.")
+    s3.metric("No allocation", none_alloc,
+              help="No allocation rows yet - not onboarded for this month.")
     status_order = ["Fully allocated", "Partially allocated", "No allocation"]
     status_df = pd.DataFrame({"Status": status_order,
                               "Resources": [fully, partial, none_alloc]})
@@ -261,11 +261,11 @@ def render(user):
         bl_note = "No baseline projects defined."
     st.markdown("##### Baseline share of allocation")
     st.caption("Of all allocated capacity (hours), how much sits on baseline "
-               "(non-delivery) work — combined across every baseline project. "
+               "(non-delivery) work - combined across every baseline project. "
                + bl_note)
     b1, b2, b3 = st.columns(3)
     b1.metric(f"This month ({MONTH_ABBR[month]})", f"{bs_month:.0f}%")
-    b2.metric(f"YTD (Jan–{MONTH_ABBR[month]})", f"{bs_ytd:.0f}%")
+    b2.metric(f"YTD (Jan-{MONTH_ABBR[month]})", f"{bs_ytd:.0f}%")
     b3.metric(f"Full year ({year})", f"{bs_fy:.0f}%")
 
     # ---- Per-project allocation share + burn (picker) ----
@@ -281,7 +281,7 @@ def render(user):
 
     st.markdown("##### Financials (planned burn)")
     f1, f2, f3, f4, f5 = st.columns(5)
-    f1.metric(f"YTD burn (Jan–{MONTH_ABBR[month]})", f"{ytd:,.0f}")
+    f1.metric(f"YTD burn (Jan-{MONTH_ABBR[month]})", f"{ytd:,.0f}")
     f2.metric("Rest-of-year projection", f"{rest:,.0f}")
     f3.metric("Full-year projection", f"{fy:,.0f}")
     f4.metric("Total budget", f"{total_budget:,.0f}")
@@ -290,14 +290,14 @@ def render(user):
               help="Total budget minus full-year projected burn. Negative = "
                    "projected to go over budget.")
     if remaining_budget < 0:
-        st.error(f"⚠️ Projected **over budget** by {abs(remaining_budget):,.0f} "
+        st.error(f"Projected **over budget** by {abs(remaining_budget):,.0f} "
                  f"for {year} (full-year burn {fy:,.0f} vs budget {total_budget:,.0f}).")
     st.caption("Projection = planned burn from current allocations. "
-               "YTD = Jan→selected month; rest-of-year = remaining months; "
+               "YTD = Jan->selected month; rest-of-year = remaining months; "
                "full-year = all 12 months.")
 
     # ---- Monthly burn trend (chronological order enforced via Altair sort) ----
-    with st.expander("📈 Monthly burn trend (Jan–Dec)", expanded=True):
+    with st.expander("Monthly burn trend (Jan-Dec)", expanded=True):
         order = [MONTH_ABBR[m] for m in range(1, 13)]
         burn_df = pd.DataFrame({
             "Month": order,
@@ -336,7 +336,7 @@ def _project_allocation_section(year, month, version, split):
     if not projects:
         st.info("No projects yet.")
         return
-    pmap = {logic.project_label(p) + (" ⭐" if p["is_baseline"] else ""): p["id"]
+    pmap = {logic.project_label(p) + (" *" if p["is_baseline"] else ""): p["id"]
             for p in projects}
     label = st.selectbox("Project", list(pmap.keys()), key="dash_proj_pick")
     pid = pmap[label]
@@ -350,12 +350,12 @@ def _project_allocation_section(year, month, version, split):
         return (sum(num) / d * 100.0) if d > 0 else 0.0
 
     c1, c2, c3 = st.columns(3)
-    c1.metric(f"Alloc share — {MONTH_ABBR[month]}",
+    c1.metric(f"Alloc share - {MONTH_ABBR[month]}",
               f"{share(p_hours[month-1:month], tot[month-1:month]):.0f}%")
-    c2.metric(f"Alloc share — YTD (Jan–{MONTH_ABBR[month]})",
+    c2.metric(f"Alloc share - YTD (Jan-{MONTH_ABBR[month]})",
               f"{share(p_hours[:month], tot[:month]):.0f}%")
-    c3.metric(f"Alloc share — FY {year}", f"{share(p_hours, tot):.0f}%")
-    st.caption("Allocation share = this project's allocated capacity-hours ÷ the "
+    c3.metric(f"Alloc share - FY {year}", f"{share(p_hours, tot):.0f}%")
+    st.caption("Allocation share = this project's allocated capacity-hours / the "
                "team's total allocated hours, for the period.")
 
     order = [MONTH_ABBR[m] for m in range(1, 13)]
@@ -381,21 +381,21 @@ def _action_items(user):
     soon = logic.projects_ending_soon(30)
     if not past and not soon:
         return
-    label = "🔔 Action items"
+    label = "Action items"
     if past:
-        label += f" · {len(past)} need closure"
+        label += f" - {len(past)} need closure"
     if soon:
-        label += f" · {len(soon)} ending soon"
+        label += f" - {len(soon)} ending soon"
     with st.expander(label, expanded=bool(past)):
         if soon:
             st.warning("Ending within 30 days: " +
                        ", ".join(f"{p['name']} ({d}d)" for p, d in soon))
         for p in past:
-            st.markdown(f"**{p['name']}** — ended "
+            st.markdown(f"**{p['name']}** - ended "
                         f"{month_label(p['end_year'], p['end_month'])} "
                         f"(status {p['status']})")
             c1, c2, c3 = st.columns([1, 1, 2])
-            if c1.button("✅ Close", key=f"close_{p['id']}"):
+            if c1.button("Close", key=f"close_{p['id']}"):
                 logic.close_project(p["id"], user, "acknowledged closure (past end)")
                 st.success("Closed."); st.rerun()
             new_year = c2.number_input("Extend yr", 2020, 2100, p["end_year"],
@@ -404,7 +404,7 @@ def _action_items(user):
                                      index=p["end_month"] - 1,
                                      format_func=lambda x: MONTH_NAMES[x],
                                      key=f"exm_{p['id']}", label_visibility="collapsed")
-            if c3.button("📅 Extend instead", key=f"ext_{p['id']}"):
+            if c3.button("Extend instead", key=f"ext_{p['id']}"):
                 try:
                     logic.extend_project(p["id"], int(new_month), int(new_year), user)
                     st.success("Extended."); st.rerun()
@@ -413,12 +413,12 @@ def _action_items(user):
 
 
 def _project_health_section(year, month, version):
-    st.subheader("📊 Project health")
+    st.subheader("Project health")
     st.caption(f"Planned spend, remaining and **% of budget** are for the full "
-               f"year **Jan–Dec {year}** (clipped to each project's window). "
+               f"year **Jan-Dec {year}** (clipped to each project's window). "
                "*Basis* = **annual** if a per-year budget is set for this year, "
                "else **overall** (the project's total budget). Set a per-year "
-               "budget in Project Pipeline → Detail → Budget.")
+               "budget in Project Pipeline -> Detail -> Budget.")
     health = _project_health(year, month, version)
     if not health:
         st.info("No projects yet.")
@@ -453,14 +453,14 @@ def _project_health_section(year, month, version):
 
 
 def _utilization_section(util):
-    st.subheader("👥 Resource utilization")
+    st.subheader("Resource utilization")
     if not util:
         st.info("No active resources.")
         return
 
     roles = sorted({u["role"] for u in util})
     f1, f2, f3 = st.columns([2, 2, 2])
-    search = f1.text_input("🔎 Search name / project", key="dash_search").strip().lower()
+    search = f1.text_input("Search name / project", key="dash_search").strip().lower()
     role_filter = f2.multiselect("Role", roles, key="dash_roles")
     state = f3.selectbox(
         "Allocation status",
@@ -482,7 +482,7 @@ def _utilization_section(util):
 
     filtered = [u for u in util if keep(u)]
     st.caption(f"Showing **{len(filtered)}** of {len(util)} resources. "
-               "Baseline time is shown separately — it is not 'free' capacity.")
+               "Baseline time is shown separately - it is not 'free' capacity.")
 
     if not filtered:
         st.info("No resources match the filters.")

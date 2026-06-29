@@ -16,7 +16,7 @@ from working_days import MONTH_NAMES
 
 
 def render(user):
-    st.title("⚙️ Setup")
+    st.title("Setup")
     tabs = st.tabs(["Resources", "Projects", "Roles", "Managers", "Holidays"])
     with tabs[0]:
         _resources(user)
@@ -108,10 +108,10 @@ def _resources(user):
         st.warning("Add at least one Role first (Roles tab).")
 
     clear_after_save("_clr_add_resource", ["add_res_name"])
-    with st.expander("➕ Add a resource", expanded=False):
+    with st.expander("Add a resource", expanded=False):
         with st.form("add_resource"):
             name = st.text_input("Name", key="add_res_name")
-            role = st.selectbox("Role", list(role_map.keys()) or ["—"])
+            role = st.selectbox("Role", list(role_map.keys()) or ["-"])
             mgr = st.selectbox("Manager", ["(none)"] + list(mgr_map.keys()))
             hpd = st.slider("Hours / day", 1.0, 24.0, 8.0, 0.5)
             dpw = st.slider("Days / week", 1.0, 7.0, 5.0, 0.5)
@@ -185,7 +185,7 @@ def _resources(user):
         new_status = st.selectbox("Status", ["ACTIVE", "INACTIVE"],
                                   index=0 if res["status"] == "ACTIVE" else 1,
                                   key="ed_status")
-    if st.button("💾 Save resource"):
+    if st.button("Save resource"):
         db.execute(
             """UPDATE resources SET name=?, role_id=?, manager_id=?, hours_per_day=?,
                days_per_week=?, status=? WHERE id=?""",
@@ -246,7 +246,7 @@ def _projects(user):
 
     clear_after_save("_clr_add_project",
                      ["add_proj_name", "add_proj_code", "add_proj_notes"])
-    with st.expander("➕ Add a project", expanded=False):
+    with st.expander("Add a project", expanded=False):
         with st.form("add_project"):
             name = st.text_input("Project name", key="add_proj_name")
             code = st.text_input("Project code (PCode for timesheets)",
@@ -302,7 +302,7 @@ def _projects_table():
         return
     df = pd.DataFrame([{
         "id": p["id"], "code": p["code"] or "", "name": p["name"],
-        "baseline": "✔" if p["is_baseline"] else "",
+        "baseline": "" if p["is_baseline"] else "",
         "status": p["status"],
         "start": f"{MONTH_NAMES[p['start_month']][:3]} {p['start_year']}",
         "end": f"{MONTH_NAMES[p['end_month']][:3]} {p['end_year']}",
@@ -311,7 +311,7 @@ def _projects_table():
     } for p in projects])
     st.dataframe(df, use_container_width=True, hide_index=True)
     st.caption("Edit full project details (incl. status & budget amendments) "
-               "from **Project Pipeline → Project Detail**.")
+               "from **Project Pipeline -> Project Detail**.")
 
 
 # --------------------------------------------------------------------------- #
@@ -345,7 +345,7 @@ def _holidays(user):
         df = pd.DataFrame([{"date": r["holiday_date"], "name": r["name"]}
                            for r in rows])
         st.dataframe(df, use_container_width=True, hide_index=True)
-        ids = {f"{r['holiday_date']} — {r['name']}": r["id"] for r in rows}
+        ids = {f"{r['holiday_date']} - {r['name']}": r["id"] for r in rows}
         sel = st.selectbox("Delete a holiday", list(ids.keys()))
         if st.button("Delete holiday"):
             db.execute("DELETE FROM holidays WHERE id=?", (ids[sel],))

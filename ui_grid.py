@@ -1,7 +1,7 @@
 """
 ui_grid.py
 ----------
-Monthly allocation grid: resources (rows) × projects (columns).
+Monthly allocation grid: resources (rows) x projects (columns).
 
 Only READY_TO_USE projects appear as columns; baseline projects are shown in
 their own block. Rows that total exactly 100% are green; anything else is red.
@@ -20,12 +20,12 @@ from working_days import MONTH_NAMES
 
 
 def render(user):
-    st.title("📅 Monthly Grid")
+    st.title("Monthly Grid")
 
     today = _dt.date.today()
     year = today.year
     if not logic.has_allocations_for_year(year):
-        st.warning(f"🎉 New year: no allocations recorded for {year} yet. "
+        st.warning(f"New year: no allocations recorded for {year} yet. "
                    "Start assigning below.")
 
     c1, c2 = st.columns(2)
@@ -72,8 +72,9 @@ def render(user):
         return [color] * len(row)
 
     st.caption("Values are **% of each resource's monthly capacity** allocated "
-               "to each project (not hours). 🟩 row = 100% · 🟥 row ≠ 100%. "
-               "Baseline columns shown first. Scroll horizontally for many projects.")
+               "to each project (not hours). Green row = totals 100%, red row "
+               "= not 100%. Baseline columns shown first. Scroll horizontally "
+               "for many projects.")
     styled = df.style.apply(highlight, axis=1).format(
         {c: "{:.0f}%" for c in proj_cols + ["Total"]})
     st.dataframe(styled, use_container_width=True, hide_index=True, height=min(
@@ -87,7 +88,7 @@ def render(user):
     _onboard_baseline(user, resources, baselines, sel_year, month, green, len(totals))
 
     st.divider()
-    st.subheader("✏️ Edit a cell")
+    st.subheader("Edit a cell")
     st.caption("Select a resource and a project, then assign in the panel.")
     rmap = {f"{r['name']} ({logic.role_name(r['role_id'])})": r["id"]
             for r in resources}
@@ -101,7 +102,7 @@ def render(user):
     psel = cc2.selectbox("Project", list(dmap.keys()), key="grid_proj")
 
     # The grid owns the resource/project selection, so the panel is locked to it
-    # (no duplicate selectors) — one source of truth.
+    # (no duplicate selectors) - one source of truth.
     with st.container(border=True):
         saved = ui_assign.assignment_panel(
             user, resource_id=rmap[rsel], project_id=dmap[psel],
@@ -114,14 +115,14 @@ def _onboard_baseline(user, resources, baselines, sel_year, month, green, total)
     """One-click action to place a resource onto a baseline at 100% across a
     range of months (the onboarding step for brand-new resources)."""
     needs_attention = green < total
-    with st.expander("🚀 Put a resource on a baseline (onboarding)",
+    with st.expander("Put a resource on a baseline (onboarding)",
                      expanded=needs_attention):
         st.caption("A brand-new resource has no allocations. Place them on a "
                    "baseline at 100% across a month range so they total 100% and "
                    "can take delivery work. Months that already have delivery work "
-                   "keep it — the baseline just carries the remainder.")
+                   "keep it - the baseline just carries the remainder.")
         if not baselines:
-            st.info("Create a baseline project first: Setup → Projects (tick "
+            st.info("Create a baseline project first: Setup -> Projects (tick "
                     "**Is baseline**), then promote it to READY_TO_USE in the "
                     "Pipeline.")
             return
@@ -139,8 +140,8 @@ def _onboard_baseline(user, resources, baselines, sel_year, month, green, total)
         if to_m < from_m:
             st.error("To month must be on/after From month.")
             return
-        label = (f"Put on baseline at 100% · "
-                 f"{MONTH_NAMES[from_m][:3]}–{MONTH_NAMES[to_m][:3]} {sel_year}")
+        label = (f"Put on baseline at 100% - "
+                 f"{MONTH_NAMES[from_m][:3]}-{MONTH_NAMES[to_m][:3]} {sel_year}")
         if st.button(label, key="ob_go"):
             import time
             try:
@@ -149,12 +150,12 @@ def _onboard_baseline(user, resources, baselines, sel_year, month, green, total)
                                                   m, user, "onboarding to baseline")
                 db.audit_log("ASSIGN", "allocation", bmap[bsel],
                              f"Onboarded {rsel} to baseline {bsel} "
-                             f"({MONTH_NAMES[from_m]}–{MONTH_NAMES[to_m]} {sel_year})",
+                             f"({MONTH_NAMES[from_m]}-{MONTH_NAMES[to_m]} {sel_year})",
                              user)
                 st.cache_data.clear()   # so the Dashboard reflects it immediately
-                st.success(f"✅ {rsel} placed on baseline for "
-                           f"{MONTH_NAMES[from_m]}–{MONTH_NAMES[to_m]} {sel_year}.")
-                st.toast("✅ Resource placed on baseline", icon="✅")
+                st.success(f"{rsel} placed on baseline for "
+                           f"{MONTH_NAMES[from_m]}-{MONTH_NAMES[to_m]} {sel_year}.")
+                st.toast("Resource placed on baseline", icon="")
                 time.sleep(1.3)         # keep the confirmation visible
                 st.rerun()
             except logic.ValidationError as e:

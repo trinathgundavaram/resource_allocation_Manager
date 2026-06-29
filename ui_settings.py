@@ -13,15 +13,15 @@ import database as db
 
 
 def render(user):
-    st.title("🛠️ Settings")
+    st.title("Settings")
 
     st.subheader("Backups")
-    last = db.get_setting("last_backup_at", "—")
-    st.metric("Last backup", last or "—")
+    last = db.get_setting("last_backup_at", "-")
+    st.metric("Last backup", last or "-")
     st.caption("A backup is taken automatically every time the app starts. "
                "The 30 most recent backups are kept.")
 
-    if st.button("📦 Create manual backup now"):
+    if st.button("Create manual backup now"):
         path = db.make_backup()
         if path:
             st.success(f"Backup created: {os.path.basename(path)}")
@@ -45,15 +45,15 @@ def render(user):
     st.warning("Restoring replaces the current database. A safety backup of the "
                "current state is taken automatically before restoring.")
     if backups:
-        labels = {f"{fn}  ·  {ts}": full for fn, full, ts in backups}
+        labels = {f"{fn}  -  {ts}": full for fn, full, ts in backups}
         sel = st.selectbox("Choose a backup to restore", list(labels.keys()))
         confirm = st.checkbox("I understand this will overwrite current data.")
-        if st.button("♻️ Restore selected backup", disabled=not confirm):
+        if st.button("Restore selected backup", disabled=not confirm):
             try:
                 db.restore_backup(labels[sel])
-                st.cache_data.clear()    # restored DB → drop any cached views
+                st.cache_data.clear()    # restored DB -> drop any cached views
                 st.session_state.clear()
-                st.success("Restored. Reloading…")
+                st.success("Restored. Reloading...")
                 st.rerun()
             except Exception as e:
                 st.error(f"Restore failed: {e}")

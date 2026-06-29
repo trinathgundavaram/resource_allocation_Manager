@@ -2,7 +2,7 @@
 ui_reports.py
 -------------
 Export / Reports: allocation grid, project financials (as-of), resource
-utilization, cross-project cost and audit trail — all to Excel via openpyxl.
+utilization, cross-project cost and audit trail - all to Excel via openpyxl.
 """
 
 import datetime as _dt
@@ -25,7 +25,7 @@ def _to_excel(sheets):
     return buf.getvalue()
 
 
-PERIODS = ["Selected month", "YTD (Jan → selected month)", "Full year (Jan → Dec)"]
+PERIODS = ["Selected month", "YTD (Jan -> selected month)", "Full year (Jan -> Dec)"]
 
 
 def _period_months(year, month, period):
@@ -78,7 +78,7 @@ def _weekly_rows(year, month, cutoff):
                 "Resource": res["name"],
                 "Manager": logic.manager_name(res["manager_id"]),
                 "PCode": r.get("code", ""),
-                "Project": r["project"] + (" ⭐" if r["is_baseline"] else ""),
+                "Project": r["project"] + (" *" if r["is_baseline"] else ""),
                 "Year": year, "Month": MONTH_NAMES[month],
                 "Week": r["week_label"],
                 "Status": "LOCKED" if r["locked"] else "open",
@@ -89,7 +89,7 @@ def _weekly_rows(year, month, cutoff):
 
 def _weekly_pivot(year, month, cutoff):
     """Wide matrix: rows = (Resource, Project), columns = week labels, with a
-    per-resource weekly TOTAL row. Locked weeks get a 🔒 in the column header."""
+    per-resource weekly TOTAL row. Locked weeks get a in the column header."""
     weeks_meta = None
     blocks = []
     for res in logic.get_resources(active_only=False):
@@ -98,12 +98,12 @@ def _weekly_pivot(year, month, cutoff):
             continue
         weeks_meta = weeks
         week_cols = [w["label"] for w in weeks]
-        # aggregate hours by project × week (project label carries its PCode)
+        # aggregate hours by project x week (project label carries its PCode)
         proj_names = {}
         for r in rows:
             code = r.get("code", "")
-            pname = ((code + " — ") if code else "") + r["project"] \
-                + (" ⭐" if r["is_baseline"] else "")
+            pname = ((code + " - ") if code else "") + r["project"] \
+                + (" *" if r["is_baseline"] else "")
             proj_names.setdefault(pname, {})
             proj_names[pname][r["week_label"]] = \
                 proj_names[pname].get(r["week_label"], 0.0) + r["hours"]
@@ -115,7 +115,7 @@ def _weekly_pivot(year, month, cutoff):
                 row[c] = round(wk.get(c, 0.0), 1)
             blocks.append(row)
         # weekly total row for the resource
-        total = {"Resource": res["name"], "Project": "▶ TOTAL"}
+        total = {"Resource": res["name"], "Project": "> TOTAL"}
         for c in week_cols:
             total[c] = round(sum(r["hours"] for r in rows if r["week_label"] == c), 1)
         blocks.append(total)
@@ -124,17 +124,17 @@ def _weekly_pivot(year, month, cutoff):
     cols = ["Resource", "Project"] + ([w["label"] for w in weeks_meta] if weeks_meta else [])
     df = pd.DataFrame(blocks, columns=cols)
     # Mark locked (already-submitted) week columns with a padlock.
-    rename = {w["label"]: (w["label"] + " 🔒" if w.get("locked") else w["label"])
+    rename = {w["label"]: (w["label"] + "" if w.get("locked") else w["label"])
               for w in (weeks_meta or [])}
     df = df.rename(columns=rename)
     return df, (weeks_meta or [])
 
 
-_ASSUMPTIONS = pd.DataFrame({"Weekly hours — assumptions": [
-    "A full Mon–Fri week = hours_per_day × days_per_week hours (40h by default).",
-    "Partial weeks scale by their number of working days (Mon–Fri, minus holidays).",
+_ASSUMPTIONS = pd.DataFrame({"Weekly hours - assumptions": [
+    "A full Mon-Fri week = hours_per_day x days_per_week hours (40h by default).",
+    "Partial weeks scale by their number of working days (Mon-Fri, minus holidays).",
     "Weeks never cross a month boundary: the first/last partial stretch of a month "
-    "is its own week (Week 1 of <Mon>, … last week of <Mon>); the next month "
+    "is its own week (Week 1 of <Mon>, ... last week of <Mon>); the next month "
     "restarts at Week 1.",
     "A project assigned mid-month only loads the weeks from its assigned date "
     "onward; earlier (already submitted) weeks keep 0 for that project.",
@@ -145,10 +145,10 @@ _ASSUMPTIONS = pd.DataFrame({"Weekly hours — assumptions": [
 
 
 def _weekly_hours_tab(today):
-    st.markdown("#### Weekly hours to book — by resource & project")
+    st.markdown("#### Weekly hours to book - by resource & project")
     st.caption("Distributes each resource's monthly allocation into weekly hours "
                "(assuming a 40-hour full week). Weeks ending before the **lock "
-               "date** are already submitted (🔒) and are never rewritten — new "
+               "date** are already submitted () and are never rewritten - new "
                "or rebalanced hours land only on the open weeks on/after it.")
     c1, c2, c3, c4 = st.columns(4)
     month = c1.selectbox("Month", list(range(1, 13)), index=today.month - 1,
@@ -170,12 +170,12 @@ def _weekly_hours_tab(today):
                 "Week": w["label"],
                 "From": w["start"].isoformat(), "To": w["end"].isoformat(),
                 "Working days": w["working_days"],
-                "Status": "🔒 LOCKED" if w["locked"] else "open",
+                "Status": "LOCKED" if w["locked"] else "open",
             } for w in weeks_meta]), use_container_width=True, hide_index=True)
         n_locked = sum(1 for w in weeks_meta if w["locked"])
-        st.caption(f"Preview — {MONTH_NAMES[month]} {year} (hours per week). "
-                   f"🔒 = locked/submitted ({n_locked} of {len(weeks_meta)} weeks). "
-                   "Rows marked ▶ TOTAL are the resource's weekly total.")
+        st.caption(f"Preview - {MONTH_NAMES[month]} {year} (hours per week). "
+                   f"= locked/submitted ({n_locked} of {len(weeks_meta)} weeks). "
+                   "Rows marked > TOTAL are the resource's weekly total.")
         st.dataframe(pivot, use_container_width=True, hide_index=True,
                      height=min(640, 80 + 28 * len(pivot)))
 
@@ -201,13 +201,13 @@ def _weekly_hours_tab(today):
         st.caption(f"Workbook will contain a long-form sheet plus {len(sheets)} "
                    "monthly matrix sheets.")
     st.download_button(
-        f"📥 Download weekly hours — {period}", _to_excel(book),
+        f"Download weekly hours - {period}", _to_excel(book),
         file_name=f"weekly_hours_{suffix}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 def render(user):
-    st.title("📤 Export / Reports")
+    st.title("Export / Reports")
     st.caption("All exports use openpyxl (.xlsx).")
     today = _dt.date.today()
 
@@ -237,7 +237,7 @@ def render(user):
         suffix = {PERIODS[0]: f"{year}_{month:02d}", PERIODS[1]: f"{year}_YTD_to_{month:02d}",
                   PERIODS[2]: f"{year}_full"}[period]
         st.download_button(
-            f"📥 Download allocation grid — {period}", _to_excel(sheets),
+            f"Download allocation grid - {period}", _to_excel(sheets),
             file_name=f"allocation_grid_{suffix}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         if len(months) > 1:
@@ -267,7 +267,7 @@ def render(user):
             st.dataframe(df, use_container_width=True, hide_index=True)
             if not df.empty:
                 st.download_button(
-                    "📥 Download project financials", _to_excel({"Financials": df}),
+                    "Download project financials", _to_excel({"Financials": df}),
                     file_name=f"financials_{psel}_{as_of}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -294,7 +294,7 @@ def render(user):
             if len(months) > 1:
                 st.caption(f"Workbook will contain {len(months)} monthly sheets.")
             st.download_button(
-                f"📥 Download utilization — {period}", _to_excel(sheets),
+                f"Download utilization - {period}", _to_excel(sheets),
                 file_name=f"utilization_{suffix}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -317,7 +317,7 @@ def render(user):
         df = pd.DataFrame(data)
         st.dataframe(df, use_container_width=True, hide_index=True)
         st.download_button(
-            "📥 Download cross-project cost", _to_excel({"CrossProject": df}),
+            "Download cross-project cost", _to_excel({"CrossProject": df}),
             file_name=f"cross_project_cost_{year}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -340,6 +340,6 @@ def render(user):
                      height=min(500, 80 + 25 * max(1, len(df))))
         if not df.empty:
             st.download_button(
-                "📥 Download audit trail", _to_excel({"AuditTrail": df}),
+                "Download audit trail", _to_excel({"AuditTrail": df}),
                 file_name=f"audit_trail_{today}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

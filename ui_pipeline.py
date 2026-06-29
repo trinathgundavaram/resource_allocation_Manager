@@ -3,7 +3,7 @@ ui_pipeline.py
 --------------
 Project Pipeline: a static Kanban board and a full Project Detail editor.
 
-The Kanban is display-only (no drag, no move buttons) — clicking a card opens
+The Kanban is display-only (no drag, no move buttons) - clicking a card opens
 the Project Detail page where every field is editable and status changes /
 budget amendments are logged.
 """
@@ -21,7 +21,7 @@ from working_days import MONTH_NAMES
 
 
 def render(user):
-    st.title("📋 Project Pipeline")
+    st.title("Project Pipeline")
     pid = st.session_state.get("detail_project_id")
     if pid:
         _project_detail(pid, user)
@@ -33,10 +33,10 @@ def render(user):
 # Kanban (static)
 # --------------------------------------------------------------------------- #
 def _kanban(user):
-    st.caption("Static board — click **Open** on a card to edit a project.")
+    st.caption("Static board - click **Open** on a card to edit a project.")
     projects = logic.get_projects()
     if not projects:
-        st.info("No projects yet. Add some in Setup → Projects.")
+        st.info("No projects yet. Add some in Setup -> Projects.")
         return
 
     # Always-visible columns so empty lanes (e.g. GATE_0, CANCELLED, DENIED)
@@ -61,10 +61,10 @@ def _kanban(user):
                 f"font-weight:600'>{status} ({len(by_status.get(status, []))})</div>",
                 unsafe_allow_html=True)
             if not by_status.get(status):
-                st.caption("—")
+                st.caption("-")
             for p in by_status.get(status, []):
                 budget = logic.budget_for_month(p["id"], p["start_year"], p["start_month"])
-                base = " ⭐" if p["is_baseline"] else ""
+                base = " *" if p["is_baseline"] else ""
                 added = (p["created_at"] or "")[:10]
                 code = (p["code"] or "").strip()
                 code_html = (f"<span style='font-size:0.72em;color:#fff;"
@@ -75,7 +75,7 @@ def _kanban(user):
                     f"{p['color'] or color};border-radius:6px;padding:8px;"
                     f"margin:6px 0;background:rgba(127,127,127,0.06)'>"
                     f"{code_html}<b>{p['name']}{base}</b><br>"
-                    f"<span style='font-size:0.85em'>💰 {budget:,.0f}</span><br>"
+                    f"<span style='font-size:0.85em'>{budget:,.0f}</span><br>"
                     f"<span style='font-size:0.78em;color:#888'>added {added}</span>"
                     f"</div>", unsafe_allow_html=True)
                 if st.button("Open", key=f"open_{p['id']}"):
@@ -94,8 +94,8 @@ def _project_detail(pid, user):
         return
 
     c1, c2 = st.columns([4, 1])
-    c1.subheader(f"{logic.project_label(project)}  ·  {project['status']}")
-    if c2.button("← Back to board"):
+    c1.subheader(f"{logic.project_label(project)}  -  {project['status']}")
+    if c2.button("<- Back to board"):
         st.session_state.pop("detail_project_id", None)
         st.rerun()
 
@@ -120,8 +120,8 @@ def _details_tab(project, user):
 
     # Read-only metadata (cannot be edited).
     m1, m2 = st.columns(2)
-    m1.markdown(f"**Added (created):** {(project['created_at'] or '—')}")
-    m2.markdown(f"**Created by:** {project['created_by'] or '—'}")
+    m1.markdown(f"**Added (created):** {(project['created_at'] or '-')}")
+    m2.markdown(f"**Created by:** {project['created_by'] or '-'}")
 
     st.markdown("##### Editable fields")
     c1, c2 = st.columns(2)
@@ -154,7 +154,7 @@ def _details_tab(project, user):
     color = st.color_picker("Color", project["color"] or "#4C78A8")
     notes = st.text_area("Notes", project["notes"] or "")
 
-    if st.button("💾 Save details"):
+    if st.button("Save details"):
         try:
             db.execute(
                 """UPDATE projects SET name=?, code=?, project_lead_id=?,
@@ -166,7 +166,7 @@ def _details_tab(project, user):
                          f"Updated project details '{name.strip()}'", user)
             st.success("Saved."); st.rerun()
         except Exception as e:
-            st.error(f"Save failed (check end ≥ start): {e}")
+            st.error(f"Save failed (check end >= start): {e}")
 
     st.divider()
     st.markdown("##### Budget")
@@ -214,7 +214,7 @@ def _details_tab(project, user):
             db.audit_log("UPDATE", "project", pid,
                          f"Budget amendment {amt:g} ({scope_txt}) effective "
                          f"{eff.isoformat()} on '{project['name']}'"
-                         + (f" — {note}" if note.strip() else ""), user)
+                         + (f" - {note}" if note.strip() else ""), user)
             st.session_state[f"_clr_budget_{pid}"] = True
             st.success(f"Budget amendment added ({scope_txt}).")
             st.rerun()
@@ -233,7 +233,7 @@ def _details_tab(project, user):
         if st.button("Apply status change", disabled=not ack):
             try:
                 logic.change_project_status(pid, new_status, user, reason)
-                st.success(f"Status → {new_status}"); st.rerun()
+                st.success(f"Status -> {new_status}"); st.rerun()
             except logic.ValidationError as e:
                 st.error(str(e))
 
@@ -248,7 +248,7 @@ def _assumptions_tab(project, user):
         for r in rows:
             st.markdown(
                 f"<div style='border-left:3px solid #4C78A8;padding:4px 10px;"
-                f"margin:6px 0'><b>{r['created_by'] or '—'}</b> "
+                f"margin:6px 0'><b>{r['created_by'] or '-'}</b> "
                 f"<span style='color:#888;font-size:0.85em'>{r['created_at']}</span><br>"
                 f"{r['content']}</div>", unsafe_allow_html=True)
     else:
@@ -291,8 +291,8 @@ def _attachments_tab(project, user):
         return
     for r in rows:
         c1, c2, c3 = st.columns([3, 2, 1])
-        c1.write(f"📎 {r['filename']}")
-        c1.caption(f"{r['uploaded_at']} · {r['uploaded_by']}")
+        c1.write(f"{r['filename']}")
+        c1.caption(f"{r['uploaded_at']} - {r['uploaded_by']}")
         exists = os.path.exists(r["filepath"])
         if exists:
             ext = os.path.splitext(r["filename"])[1].lower()
@@ -300,11 +300,11 @@ def _attachments_tab(project, user):
                 with c1.expander("Preview"):
                     st.image(r["filepath"])
             with open(r["filepath"], "rb") as f:
-                c2.download_button("⬇ Download", f.read(), file_name=r["filename"],
+                c2.download_button(" Download", f.read(), file_name=r["filename"],
                                    key=f"dl_{r['id']}")
         else:
             c2.warning("file missing")
-        if c3.button("🗑", key=f"delatt_{r['id']}"):
+        if c3.button("", key=f"delatt_{r['id']}"):
             try:
                 if exists:
                     os.remove(r["filepath"])
@@ -325,11 +325,11 @@ def _status_history_tab(project):
         st.info("No status history.")
         return
     for r in rows:
-        old = r["old_status"] or "—"
+        old = r["old_status"] or "-"
         st.markdown(
-            f"**{old} → {r['new_status']}**  "
-            f"<span style='color:#888;font-size:0.85em'>{r['changed_at']} · "
-            f"{r['changed_by'] or '—'}</span>  \n{r['reason'] or ''}",
+            f"**{old} -> {r['new_status']}**  "
+            f"<span style='color:#888;font-size:0.85em'>{r['changed_at']} - "
+            f"{r['changed_by'] or '-'}</span>  \n{r['reason'] or ''}",
             unsafe_allow_html=True)
 
 
@@ -349,7 +349,7 @@ def _allocations_tab(project, user):
                     st.error(str(e))
         else:
             st.info("Advance the project through its lifecycle first "
-                    "(see Details → Status change).")
+                    "(see Details -> Status change).")
         return
 
     import ui_project_view

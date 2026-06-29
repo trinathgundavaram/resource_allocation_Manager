@@ -1,7 +1,7 @@
 """
 reset.py
 --------
-Start fresh. You normally never touch SQLite by hand — the app creates every
+Start fresh. You normally never touch SQLite by hand - the app creates every
 table automatically on startup (see database.init_db). This helper just wipes
 the database file so you can begin clean.
 

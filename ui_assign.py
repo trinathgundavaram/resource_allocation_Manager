@@ -26,7 +26,7 @@ from working_days import MONTH_NAMES, month_label, months_between, month_index
 
 
 def render(user):
-    st.title("🎯 Assignment Panel")
+    st.title("Assignment Panel")
     st.info("The assignment panel opens from the Monthly Grid, Project View or "
             "Availability screens. Pick a resource + project there to assign work.")
     st.markdown("You can also use the quick panel below.")
@@ -53,7 +53,7 @@ def assignment_panel(user, resource_id=None, project_id=None,
         return False
 
     # ---- Resource select ----
-    rmap = {f"{r['name']} ({logic.role_name(r['role_id'])} · "
+    rmap = {f"{r['name']} ({logic.role_name(r['role_id'])} - "
             f"mgr: {logic.manager_name(r['manager_id'])})": r["id"]
             for r in resources}
     rids = list(rmap.values())
@@ -61,7 +61,7 @@ def assignment_panel(user, resource_id=None, project_id=None,
     if locked_resource and resource_id in rids:
         lr = logic.get_resource(resource_id)
         st.markdown(f"**Resource:** {lr['name']} "
-                    f"({logic.role_name(lr['role_id'])} · "
+                    f"({logic.role_name(lr['role_id'])} - "
                     f"mgr: {logic.manager_name(lr['manager_id'])})")
         sel_rid = resource_id
     else:
@@ -95,7 +95,7 @@ def assignment_panel(user, resource_id=None, project_id=None,
         st.session_state[atopen_key] = {
             (y, m): logic.baseline_pool(sel_rid, y, m) for (y, m) in window
         }
-        # New cell selected → let every % widget re-default to its current value
+        # New cell selected -> let every % widget re-default to its current value
         # (same-% inputs AND per-month sliders), so switching resource/project
         # never carries the previous selection's edits into this one.
         for wkey in [k for k in list(st.session_state.keys())
@@ -156,7 +156,7 @@ def assignment_panel(user, resource_id=None, project_id=None,
                         on_change=_sync_from_number)
         pct = int(st.session_state[sk])
         st.caption(f"Tightest available baseline across range: **{max_pct}%** "
-                   "· slider & number stay in sync, 5% steps only.")
+                   "- slider & number stay in sync, 5% steps only.")
         for (y, m) in rng:
             month_pct[(y, m)] = pct
     else:
@@ -171,7 +171,7 @@ def assignment_panel(user, resource_id=None, project_id=None,
                             int(logic.snap5(existing)), step=5,
                             key=f"{key}_m_{y}_{m}", label_visibility="collapsed")
             running = logic.resource_month_total(sel_rid, y, m) - existing + val
-            c3.markdown(f"total → **{running:.0f}%**")
+            c3.markdown(f"total -> **{running:.0f}%**")
             month_pct[(y, m)] = logic.snap5(val)
 
     # ---- Baseline choice (which baseline to reduce) ----
@@ -205,7 +205,7 @@ def assignment_panel(user, resource_id=None, project_id=None,
         preview_rows.append({
             "month": month_label(y, m), "%": month_pct[(y, m)],
             "hours": round(hrs, 1), "billing": round(bil, 2),
-            "baseline left": "—" if rem is None else round(rem, 1),
+            "baseline left": "-" if rem is None else round(rem, 1),
         })
     if preview_rows:
         import pandas as pd
@@ -216,17 +216,17 @@ def assignment_panel(user, resource_id=None, project_id=None,
     cph2.metric("Total billing", f"{tot_billing:,.2f}")
 
     for w in v["warnings"]:
-        st.warning("⚠ " + w)
+        st.warning("" + w)
     for e in v["errors"]:
-        st.error("⛔ " + e)
+        st.error("" + e)
 
     reason = st.text_input("Reason / note", "assignment", key=f"{key}_reason")
     # Confirm stays disabled until every month passes validation.
     disabled = not v["ok"] or not month_pct
     if disabled and month_pct:
-        st.caption("⛔ Confirm is disabled until all validation issues above are "
+        st.caption("Confirm is disabled until all validation issues above are "
                    "resolved.")
-    if st.button("✅ Confirm assignment", disabled=disabled, key=f"{key}_confirm"):
+    if st.button("Confirm assignment", disabled=disabled, key=f"{key}_confirm"):
         import time
         try:
             relevant_atopen = {k: at_open[k] for k in month_pct if k in at_open}
@@ -240,14 +240,14 @@ def assignment_panel(user, resource_id=None, project_id=None,
                 st.session_state.pop(kk, None)
             st.cache_data.clear()   # so the Dashboard reflects the change immediately
             verb = "updated" if is_edit else "saved"
-            st.success(f"✅ Allocation {verb} successfully.")
-            st.toast(f"✅ Allocation {verb}", icon="✅")
+            st.success(f"Allocation {verb} successfully.")
+            st.toast(f"Allocation {verb}", icon="")
             time.sleep(1.5)  # keep the confirmation visible briefly
             return True
         except logic.ConcurrentEditError as e:
             st.session_state.pop(atopen_key, None)
             st.session_state.pop(pair_key, None)
-            st.error(f"🔒 {e}")
+            st.error(f"{e}")
         except logic.ValidationError as e:
-            st.error(f"⛔ {e}")
+            st.error(f"{e}")
     return False

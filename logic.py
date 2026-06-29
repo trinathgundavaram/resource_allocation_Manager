@@ -12,7 +12,7 @@ Everything that is *policy* rather than *storage* lives here:
   * Financial calculations (cost, budget as-of, projections, variance).
   * Annual reset / archive.
 
-The UI layer never writes allocation rows directly — it always goes through
+The UI layer never writes allocation rows directly - it always goes through
 ``assign_project`` / ``remove_assignment`` so the invariants below hold.
 """
 
@@ -94,7 +94,7 @@ _HOLIDAY_CACHE = None
 def get_holiday_dates():
     """Holiday dates, memoized per process.
 
-    Called once per resource×month inside working-hour maths, so with 50+
+    Called once per resourcexmonth inside working-hour maths, so with 50+
     resources this would otherwise issue hundreds of identical queries per
     page render. Call ``clear_holiday_cache()`` after editing holidays.
     """
@@ -166,17 +166,17 @@ def get_baseline_projects(usable_only=True):
 
 def role_name(role_id):
     r = db.query_one("SELECT name FROM roles WHERE id = ?", (role_id,))
-    return r["name"] if r else "—"
+    return r["name"] if r else "-"
 
 
 def client_name(client_id):
     r = db.query_one("SELECT name FROM clients WHERE id = ?", (client_id,))
-    return r["name"] if r else "—"
+    return r["name"] if r else "-"
 
 
 def manager_name(manager_id):
     r = db.query_one("SELECT name FROM managers WHERE id = ?", (manager_id,))
-    return r["name"] if r else "—"
+    return r["name"] if r else "-"
 
 
 # --------------------------------------------------------------------------- #
@@ -365,7 +365,7 @@ def _upsert_allocation(conn, resource_id, project_id, year, month, pct, user):
 
 
 # --------------------------------------------------------------------------- #
-# Assignment validation (no DB writes) — used for live preview
+# Assignment validation (no DB writes) - used for live preview
 # --------------------------------------------------------------------------- #
 def validate_assignment(resource_id, project_id, month_pct, baseline_choice,
                         project, conn=None):
@@ -404,7 +404,7 @@ def validate_assignment(resource_id, project_id, month_pct, baseline_choice,
         if midx < pstart or midx > pend:
             errors.append(f"{month_label(y, m)}: outside project window "
                           f"({month_label(project['start_year'], project['start_month'])}"
-                          f"–{month_label(project['end_year'], project['end_month'])}).")
+                          f"-{month_label(project['end_year'], project['end_month'])}).")
             preview[(y, m)] = cell
             continue
 
@@ -630,7 +630,7 @@ def remove_assignment(resource_id, project_id, months, baseline_target, user,
 def set_baseline_allocation(resource_id, baseline_project_id, year, month, user,
                             reason="baseline setup"):
     """Ensure a resource sits on a baseline for a month at 100% if the month is
-    otherwise empty — i.e. put a fresh resource onto a baseline. If the month
+    otherwise empty - i.e. put a fresh resource onto a baseline. If the month
     already has allocations, this only makes the chosen project the baseline
     carrier of the remainder.
     """
@@ -676,9 +676,9 @@ def change_project_status(project_id, new_status, user, reason=""):
                VALUES (?,?,?,?,?,?)""",
             (project_id, old, new_status, db.now_iso(), user, (reason or "").strip() or None),
         )
-        summary = f"Status {old} → {new_status} ({project['name']})"
+        summary = f"Status {old} -> {new_status} ({project['name']})"
         if (reason or "").strip():
-            summary += f" — {reason.strip()}"
+            summary += f" - {reason.strip()}"
         db.audit_log("STATUS", "project", project_id, summary, user, conn=conn)
     return True
 
@@ -726,7 +726,7 @@ def close_project(project_id, user, reason="auto-closed (past end date)"):
             (project_id, project["status"], "CLOSED", db.now_iso(), user, reason),
         )
         db.audit_log("STATUS", "project", project_id,
-                     f"Closed {project['name']} — {reason}", user, conn=conn)
+                     f"Closed {project['name']} - {reason}", user, conn=conn)
     return True
 
 
@@ -747,7 +747,7 @@ def extend_project(project_id, end_month, end_year, user, reason="extended"):
          f"{reason}: end -> {month_label(end_year, end_month)}"),
     )
     db.audit_log("UPDATE", "project", project_id,
-                 f"Extended {project['name']} end → {month_label(end_year, end_month)}",
+                 f"Extended {project['name']} end -> {month_label(end_year, end_month)}",
                  user)
     return True
 
@@ -864,7 +864,7 @@ def _week_eligible(assigned_date, year, month, week):
         return True
     if (d.year, d.month) != (year, month):
         return True
-    # Same month → eligible only from the week that contains/follows the date.
+    # Same month -> eligible only from the week that contains/follows the date.
     return week["end"] >= d
 
 
@@ -872,16 +872,16 @@ def weekly_project_hours(resource_id, year, month, cutoff_date=None):
     """Per-week hours a resource should book to each project in a month.
 
     Rules:
-      * A full Mon–Fri week = hours_per_day × days_per_week hours (40 by default).
+      * A full Mon-Fri week = hours_per_day x days_per_week hours (40 by default).
         Partial weeks scale by their working-day count.
       * **Week-level locking**: every week whose end date is *before* the
-        ``cutoff_date`` (default today) is LOCKED — i.e. already submitted. A
+        ``cutoff_date`` (default today) is LOCKED - i.e. already submitted. A
         project keeps its frozen share in the locked weeks it was active for;
         all rebalancing (new projects, extra hours) lands only on the open
         weeks on/after the cutoff. Past weeks are never rewritten.
       * Non-baseline projects spread their monthly hours across their eligible
         weeks (proportional to working days). A project added mid-month only
-        loads the weeks from its add-date onward — earlier weeks keep 0 for it.
+        loads the weeks from its add-date onward - earlier weeks keep 0 for it.
       * Baseline projects act as the balancer: each week is topped up to full
         capacity with baseline hours, so submitted weeks stay fully booked and a
         newly added project's load lands on the remaining open weeks. Monthly

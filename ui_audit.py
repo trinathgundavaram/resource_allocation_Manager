@@ -4,10 +4,10 @@ ui_audit.py
 Audit Trail.
 
 Two views:
-  * Activity log — every change in the app (create/update/delete of resources,
+  * Activity log - every change in the app (create/update/delete of resources,
     projects, roles, managers, holidays, rates, budgets, status changes,
-    assignments, onboarding, …), filterable by user/action/entity/date/text.
-  * Allocation changes — the detailed per-cell old%→new% history.
+    assignments, onboarding, ...), filterable by user/action/entity/date/text.
+  * Allocation changes - the detailed per-cell old%->new% history.
 
 Both export to Excel.
 """
@@ -30,7 +30,7 @@ def _to_excel(df, sheet):
 
 
 def render(user):
-    st.title("📊 Audit Trail")
+    st.title("Audit Trail")
     tabs = st.tabs(["Activity log (everything)", "Allocation changes (detail)"])
     with tabs[0]:
         _activity_log()
@@ -82,13 +82,13 @@ def _activity_log():
     st.caption(f"{len(df)} change(s).")
     st.dataframe(df, use_container_width=True, hide_index=True,
                  height=min(620, 80 + 30 * len(df)))
-    st.download_button("📥 Export activity log", _to_excel(df, "ActivityLog"),
+    st.download_button("Export activity log", _to_excel(df, "ActivityLog"),
                        file_name=f"activity_log_{_dt.date.today()}.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 def _allocation_history():
-    st.caption("Per-cell allocation changes with old → new percentages.")
+    st.caption("Per-cell allocation changes with old -> new percentages.")
     resources = logic.get_resources()
     projects = logic.get_projects()
     rmap = {"(all)": None}
@@ -138,6 +138,6 @@ def _allocation_history():
     st.caption(f"{len(df)} change(s).")
     st.dataframe(df, use_container_width=True, hide_index=True,
                  height=min(600, 80 + 30 * len(df)))
-    st.download_button("📥 Export allocation changes", _to_excel(df, "AllocationChanges"),
+    st.download_button("Export allocation changes", _to_excel(df, "AllocationChanges"),
                        file_name=f"allocation_changes_{_dt.date.today()}.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
