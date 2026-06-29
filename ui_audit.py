@@ -36,6 +36,8 @@ def render(user):
         _activity_log()
     with tabs[1]:
         _allocation_history()
+    st.divider()
+    _maintenance(user)
 
 
 def _activity_log():
@@ -85,6 +87,55 @@ def _activity_log():
     st.download_button("Export activity log", _to_excel(df, "ActivityLog"),
                        file_name=f"activity_log_{_dt.date.today()}.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+def _maintenance(user):
+    """Permanently clear audit records. Guarded by a confirmation; a full DB
+    backup is taken first, and the action itself is recorded."""
+    with st.expander("Maintenance - clear audit data", expanded=False):
+        st.warning("Deleting audit records is permanent. A full database backup "
+                   "is taken automatically before anything is deleted.")
+        scope = st.selectbox("Records to clear",
+                             ["Activity log", "Allocation changes", "Both"],
+                             key="aud_clr_scope")
+        mode = st.radio("Range", ["Older than a date", "Everything"],
+                        horizontal=True, key="aud_clr_mode")
+        cutoff = None
+        if mode == "Older than a date":
+            cutoff = st.date_input("Delete entries dated before",
+                                   _dt.date.today(), key="aud_clr_date")
+        confirm = st.checkbox("I understand this permanently deletes the selected "
+                              "audit records.", key="aud_clr_ok")
+        if st.button("Delete audit records", disabled=not confirm, key="aud_clr_go"):
+            n = _clear_audit(scope, mode, cutoff, user)
+            st.success(f"Deleted {n} record(s). A backup was saved first.")
+            st.rerun()
+
+
+def _clear_audit(scope, mode, cutoff, user):
+    tables = []
+    if scope in ("Activity log", "Both"):
+        tables.append("audit_log")
+    if scope in ("Allocation changes", "Both"):
+        tables.append("allocation_history")
+    db.make_backup()                       # safety copy before deleting
+    total = 0
+    with db.transaction() as conn:
+        for t in tables:
+            if mode == "Everything":
+                total += conn.execute(f"SELECT COUNT(*) c FROM {t}").fetchone()["c"]
+                conn.execute(f"DELETE FROM {t}")
+            else:
+                iso = cutoff.isoformat()
+                total += conn.execute(
+                    f"SELECT COUNT(*) c FROM {t} WHERE date(changed_at) < ?",
+                    (iso,)).fetchone()["c"]
+                conn.execute(f"DELETE FROM {t} WHERE date(changed_at) < ?", (iso,))
+        rng = "everything" if mode == "Everything" else f"before {cutoff.isoformat()}"
+        db.audit_log("MAINTENANCE", "audit", None,
+                     f"Cleared {scope.lower()} ({rng}): {total} record(s) deleted",
+                     user, conn=conn)
+    return total
 
 
 def _allocation_history():
